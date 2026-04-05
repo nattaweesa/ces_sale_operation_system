@@ -1,0 +1,91 @@
+from __future__ import annotations
+from typing import Optional
+from datetime import datetime, date, timezone
+from decimal import Decimal
+from sqlalchemy import Integer, String, Text, DateTime, Date, ForeignKey, Numeric
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database import Base
+
+
+class Deal(Base):
+    __tablename__ = "deals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    customer_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("customers.id"), nullable=True)
+    project_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("projects.id"), nullable=True)
+    owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+
+    deal_cycle_stage: Mapped[str] = mapped_column(String(30), default="lead")
+    status: Mapped[str] = mapped_column(String(20), default="open")  # open | on_hold | won | lost
+
+    expected_value: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
+    probability_pct: Mapped[int] = mapped_column(Integer, default=10)
+    expected_close_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
+    next_action: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    next_action_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    last_reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    competitor: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    customer: Mapped["Optional[Customer]"] = relationship("Customer", lazy="select")
+    project: Mapped["Optional[Project]"] = relationship("Project", lazy="select")
+    owner: Mapped["User"] = relationship("User", lazy="select")
+    tasks: Mapped[list["DealTask"]] = relationship(
+        "DealTask", back_populates="deal", cascade="all, delete-orphan", order_by="DealTask.created_at.desc()"
+    )
+    activities: Mapped[list["DealActivity"]] = relationship(
+        "DealActivity", back_populates="deal", cascade="all, delete-orphan", order_by="DealActivity.created_at.desc()"
+    )
+
+
+class DealTask(Base):
+    __tablename__ = "deal_tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    deal_id: Mapped[int] = mapped_column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="todo")  # todo | in_progress | done | cancelled
+    priority: Mapped[str] = mapped_column(String(20), default="medium")  # low | medium | high
+    created_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    deal: Mapped["Deal"] = relationship("Deal", back_populates="tasks")
+    creator: Mapped["Optional[User]"] = relationship("User", lazy="select")
+
+
+class DealActivity(Base):
+    __tablename__ = "deal_activities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    deal_id: Mapped[int] = mapped_column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    action_type: Mapped[str] = mapped_column(String(30), default="note")
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    from_stage: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    to_stage: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    from_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    to_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    next_action: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    next_action_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
+    created_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    deal: Mapped["Deal"] = relationship("Deal", back_populates="activities")
+    creator: Mapped["Optional[User]"] = relationship("User", lazy="select")

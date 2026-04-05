@@ -1,0 +1,100 @@
+import { useEffect, useState } from "react";
+import { Alert, Card, Col, Row, Statistic, Table, Tag, Typography } from "antd";
+import { dealsApi } from "../api";
+
+const RISK_COLORS: Record<string, string> = {
+  low: "green",
+  medium: "gold",
+  high: "red",
+};
+
+export default function DealsReviewReportPage() {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await dealsApi.reviewReportManager();
+      setData(r.data);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || "Failed to load review report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  return (
+    <div>
+      <Typography.Title level={4} style={{ marginTop: 0 }}>
+        Deal Status Review & Report
+      </Typography.Title>
+
+      {error && <Alert type="warning" message={error} style={{ marginBottom: 12 }} />}
+
+      <Row gutter={[12, 12]}>
+        <Col xs={12} md={6}><Card loading={loading}><Statistic title="Open Deals" value={data?.total_open_deals || 0} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={loading}><Statistic title="At Risk Deals" value={data?.total_at_risk_deals || 0} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={loading}><Statistic title="Overdue Tasks" value={data?.total_overdue_tasks || 0} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={loading}><Statistic title="Next 7 Days Actions" value={data?.upcoming_7d_actions || 0} /></Card></Col>
+      </Row>
+
+      <Card title="At-Risk Pipeline by Deal" style={{ marginTop: 12 }} loading={loading}>
+        <Table
+          rowKey="deal_id"
+          size="small"
+          dataSource={data?.deals || []}
+          columns={[
+            { title: "Deal", dataIndex: "title", width: 280 },
+            { title: "Owner", dataIndex: "owner_name", width: 140 },
+            { title: "Customer", dataIndex: "customer_name", width: 170 },
+            { title: "Stage", dataIndex: "stage", width: 120, render: (v: string) => <Tag>{(v || "").toUpperCase()}</Tag> },
+            {
+              title: "Risk",
+              dataIndex: "risk_level",
+              width: 100,
+              render: (v: string) => <Tag color={RISK_COLORS[v] || "default"}>{(v || "").toUpperCase()}</Tag>,
+            },
+            { title: "Stale (days)", dataIndex: "stale_days", width: 110 },
+            { title: "Overdue Tasks", dataIndex: "overdue_tasks", width: 120 },
+            { title: "Next Action Date", dataIndex: "next_action_date", width: 130 },
+            {
+              title: "Expected Value",
+              dataIndex: "expected_value",
+              width: 150,
+              render: (v: number) => Number(v || 0).toLocaleString(),
+            },
+          ]}
+          pagination={{ pageSize: 12 }}
+        />
+      </Card>
+
+      <Card title="Owner Risk Summary" style={{ marginTop: 12 }} loading={loading}>
+        <Table
+          rowKey="owner_id"
+          size="small"
+          pagination={false}
+          dataSource={data?.owner_summary || []}
+          columns={[
+            { title: "Sales", dataIndex: "owner_name" },
+            { title: "Open Deals", dataIndex: "total_open_deals", width: 90 },
+            { title: "At Risk", dataIndex: "at_risk_deals", width: 90 },
+            { title: "Overdue Tasks", dataIndex: "overdue_tasks", width: 110 },
+            { title: "Next 7D Actions", dataIndex: "upcoming_7d_actions", width: 120 },
+            {
+              title: "Pipeline",
+              dataIndex: "pipeline_amount",
+              render: (v: number) => Number(v || 0).toLocaleString(),
+            },
+          ]}
+        />
+      </Card>
+    </div>
+  );
+}

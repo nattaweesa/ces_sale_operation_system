@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Material Approval {{ quotation_number }}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 15mm 22mm 18mm;
+    @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 8pt; color: #888;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: "Noto Sans", Arial, sans-serif; font-size: 9pt; color: #222; margin: 0; }
+
+  .cover-page { text-align: center; padding-top: 80px; page-break-after: always; }
+  .cover-title { font-size: 22pt; font-weight: bold; color: #1a3a5c; margin-bottom: 10px; }
+  .cover-sub { font-size: 12pt; color: #555; margin-bottom: 6px; }
+  .cover-qt { font-size: 14pt; font-weight: bold; color: #1a3a5c; margin-bottom: 30px; }
+  .cover-company { font-size: 10pt; color: #555; margin-top: 60px; }
+  .cover-date { font-size: 9pt; color: #888; }
+
+  h2 { font-size: 11pt; color: #1a3a5c; border-bottom: 2px solid #1a3a5c; padding-bottom: 3px; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #1a3a5c; color: white; }
+  thead th { padding: 5px 7px; text-align: left; font-size: 8pt; }
+  tbody tr:nth-child(even) { background: #f5f7fa; }
+  tbody td { padding: 4px 7px; font-size: 8.5pt; border-bottom: 1px solid #eee; }
+  .center { text-align: center; }
+  .green { color: #2e7d32; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<!-- ===== COVER PAGE ===== -->
+<div class="cover-page">
+  <div class="cover-title">MATERIAL APPROVAL SUBMITTAL</div>
+  {% if package_name %}<div class="cover-sub">{{ package_name }}</div>{% endif %}
+  <div class="cover-qt">Quotation No.: {{ quotation_number }}</div>
+  <div class="cover-company">Submitted by: {{ company_name }}</div>
+  {% if company_address %}<div class="cover-date">{{ company_address }}</div>{% endif %}
+  <div class="cover-date">Date: {{ generated_at }}</div>
+</div>
+
+<!-- ===== MATERIAL LIST ===== -->
+<h2>Material Approval List</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:5%" class="center">No.</th>
+      <th style="width:15%">Item Code</th>
+      <th>Description</th>
+      <th style="width:12%">Brand</th>
+      <th style="width:18%">Datasheet Reference</th>
+      <th style="width:10%" class="center">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td class="center">{{ item.seq }}</td>
+      <td>{{ item.product_code or "" }}</td>
+      <td>{{ item.product_description or item.custom_label or "" }}</td>
+      <td>{{ item.brand or "" }}</td>
+      <td>{{ item.attachment_label or "" }}</td>
+      <td class="center green">Submitted</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+</body>
+</html>

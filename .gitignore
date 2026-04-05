@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.env
+venv/
+.venv/
+
+# Node
+node_modules/
+dist/
+.env.local
+.env.production
+
+# Storage
+backend/storage/
+ExampleData/
+*.log
+/SMART_RCU_Price list2026 (Revised 28-Jan-2026).pdf
+
+# IDE
+.vscode/
+.idea/
+*.DS_Store
+
+# Alembic
+backend/alembic/versions/*.pyc
