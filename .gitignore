@@ -22,6 +22,7 @@ backend/storage/
 ExampleData/
 *.log
 /SMART_RCU_Price list2026 (Revised 28-Jan-2026).pdf
+deploy_artifacts/
 
 # IDE
 .vscode/
