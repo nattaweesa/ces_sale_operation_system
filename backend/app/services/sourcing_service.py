@@ -475,3 +475,105 @@ async def confirm_review_match(
         "product_id": product_id,
         "status": review.status,
     }
+
+
+async def create_product_from_review(
+    db: AsyncSession,
+    review_id: int,
+    reviewer_id: int,
+    *,
+    item_code: Optional[str] = None,
+    description: Optional[str] = None,
+    brand_id: Optional[int] = None,
+    category_id: Optional[int] = None,
+    list_price: Optional[Decimal] = None,
+    currency: str = "THB",
+    status: str = "active",
+    moq: int = 1,
+    lead_time_days: Optional[int] = None,
+    remark: Optional[str] = None,
+    note: Optional[str] = None,
+) -> dict:
+    review = (
+        await db.execute(
+            select(LineMatchReviewQueue)
+            .options(selectinload(LineMatchReviewQueue.line_item))
+            .where(LineMatchReviewQueue.id == review_id)
+        )
+    ).scalar_one_or_none()
+    if not review:
+        raise ValueError("Review item not found")
+    if review.status != "pending":
+        raise ValueError("Review item is not pending")
+
+    line = review.line_item
+    if not line:
+        raise ValueError("Related staged line not found")
+
+    desired_code = (item_code or line.item_code or f"SRC-{line.id}").strip()
+    if not desired_code:
+        desired_code = f"SRC-{line.id}"
+
+    # Keep item_code unique with deterministic suffixing.
+    final_code = desired_code
+    counter = 1
+    while (
+        await db.execute(select(Product.id).where(Product.item_code == final_code))
+    ).scalar_one_or_none() is not None:
+        counter += 1
+        final_code = f"{desired_code}-{counter}"
+
+    inferred_price = _effective_price(line.net_price, line.list_price, line.amount, line.quantity)
+    product = Product(
+        item_code=final_code,
+        description=(description or line.description or "Auto-created from sourcing review").strip(),
+        brand_id=brand_id,
+        category_id=category_id,
+        list_price=list_price if list_price is not None else inferred_price,
+        currency=currency,
+        status=status,
+        moq=moq,
+        lead_time_days=lead_time_days,
+        remark=remark,
+    )
+    db.add(product)
+    await db.flush()
+
+    alias_candidates = {
+        _normalize_text(product.item_code): "item_code",
+        _normalize_text(product.description): "description",
+    }
+    if line.item_code:
+        alias_candidates[_normalize_text(line.item_code)] = "item_code"
+
+    for alias_text, alias_type in alias_candidates.items():
+        if not alias_text:
+            continue
+        exists = (
+            await db.execute(select(ProductAlias).where(ProductAlias.alias_text == alias_text))
+        ).scalar_one_or_none()
+        if exists:
+            continue
+        db.add(ProductAlias(product_id=product.id, alias_text=alias_text, alias_type=alias_type))
+
+    line.product_id = product.id
+    line.match_status = "confirmed"
+    line.match_method = "create_product"
+    line.match_confidence = Decimal("100.00")
+
+    review.status = "resolved"
+    review.reviewed_by = reviewer_id
+    review.reviewed_at = datetime.now(timezone.utc)
+    review.note = note
+    review.suggested_product_id = product.id
+
+    await _capture_price_history(db, line)
+    await db.commit()
+
+    return {
+        "review_id": review.id,
+        "line_item_id": line.id,
+        "product_id": product.id,
+        "item_code": product.item_code,
+        "status": review.status,
+    }

@@ -106,3 +106,27 @@ export const dealsApi = {
   dashboardManager: () => api.get("/deals/dashboard/manager"),
   reviewReportManager: () => api.get("/deals/review-report/manager"),
 };
+
+export const sourcingApi = {
+  backfill: () => api.post("/sourcing/backfill", { run: true }),
+  stats: () => api.get("/sourcing/stats"),
+  reviewQueue: (params?: { limit?: number }) => api.get("/sourcing/review-queue", { params }),
+  confirmMatch: (reviewId: number, productId: number, note?: string) =>
+    api.post(`/sourcing/review-queue/${reviewId}/confirm`, { product_id: productId, note }),
+  createProductFromReview: (
+    reviewId: number,
+    data: {
+      item_code?: string;
+      description?: string;
+      brand_id?: number;
+      category_id?: number;
+      list_price?: number;
+      currency?: string;
+      status?: string;
+      moq?: number;
+      lead_time_days?: number;
+      remark?: string;
+      note?: string;
+    }
+  ) => api.post(`/sourcing/review-queue/${reviewId}/create-product`, data),
+};

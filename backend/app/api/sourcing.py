@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.sourcing import BackfillRequest, ConfirmReviewRequest
+from app.schemas.sourcing import BackfillRequest, ConfirmReviewRequest, CreateProductFromReviewRequest
 from app.services.auth import get_current_user, require_roles
 from app.services.sourcing_service import (
     backfill_from_existing_documents,
     confirm_review_match,
+    create_product_from_review,
     get_sourcing_stats,
     list_pending_reviews,
 )
@@ -55,5 +58,33 @@ async def confirm_queue_match(
 ):
     try:
         return await confirm_review_match(db, review_id, payload.product_id, current_user.id, payload.note)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/review-queue/{review_id}/create-product")
+async def create_product_for_review(
+    review_id: int,
+    payload: CreateProductFromReviewRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await create_product_from_review(
+            db,
+            review_id,
+            current_user.id,
+            item_code=payload.item_code,
+            description=payload.description,
+            brand_id=payload.brand_id,
+            category_id=payload.category_id,
+            list_price=None if payload.list_price is None else Decimal(str(payload.list_price)),
+            currency=payload.currency,
+            status=payload.status,
+            moq=payload.moq,
+            lead_time_days=payload.lead_time_days,
+            remark=payload.remark,
+            note=payload.note,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

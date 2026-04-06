@@ -41,6 +41,7 @@ const navItems = [
     key: "admin", icon: <SafetyOutlined />, label: "Admin",
     children: [
       { key: "users", icon: <UserOutlined />, label: "Users", path: "/users" },
+      { key: "sourcing-review", icon: <FunnelPlotOutlined />, label: "Sourcing Review", path: "/sourcing-review" },
     ],
   },
 ];

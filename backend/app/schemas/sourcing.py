@@ -12,3 +12,17 @@ class BackfillRequest(BaseModel):
 class ConfirmReviewRequest(BaseModel):
     product_id: int
     note: Optional[str] = None
+
+
+class CreateProductFromReviewRequest(BaseModel):
+    item_code: Optional[str] = None
+    description: Optional[str] = None
+    brand_id: Optional[int] = None
+    category_id: Optional[int] = None
+    list_price: Optional[float] = None
+    currency: str = "THB"
+    status: str = "active"
+    moq: int = 1
+    lead_time_days: Optional[int] = None
+    remark: Optional[str] = None
+    note: Optional[str] = None
