@@ -14,11 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.product import Product
 
 
-FULL_LINE_RE = re.compile(
-    r"^(?P<item>[A-Za-z0-9][A-Za-z0-9_\-\/.]{1,40})\s+(?P<desc>.+?)\s+(?P<qty>\d+(?:\.\d{1,3})?)\s+(?P<unit>[A-Za-z]{1,8})\s+(?P<list>\d[\d,]*(?:\.\d{1,2})?)\s+(?P<net>\d[\d,]*(?:\.\d{1,2})?)\s+(?P<amount>\d[\d,]*(?:\.\d{1,2})?)$"
-)
-SIMPLE_LINE_RE = re.compile(
-    r"^(?P<item>[A-Za-z0-9][A-Za-z0-9_\-\/.]{1,40})\s+(?P<desc>.+?)\s+(?P<qty>\d+(?:\.\d{1,3})?)\s+(?P<unit>[A-Za-z]{1,8})\s+(?P<amount>\d[\d,]*(?:\.\d{1,2})?)$"
+STRICT_PRODUCT_LINE_RE = re.compile(
+    r"^(?P<item_no>\d+)\s+"
+    r"(?P<cat>[A-Za-z0-9][A-Za-z0-9_\-\/.]{2,80})\s+"
+    r"(?P<desc>.+?)\s+"
+    r"(?P<brand>[A-Za-z][A-Za-z0-9&.\-]*(?:\s+[A-Za-z][A-Za-z0-9&.\-]*){0,2})\s+"
+    r"(?P<list>\d[\d,]*(?:\.\d{1,2})?)\s+"
+    r"(?P<qty>\d+(?:\.\d{1,3})?)\s+"
+    r"(?P<amount>\d[\d,]*(?:\.\d{1,2})?)$"
 )
 
 
@@ -48,6 +51,13 @@ def to_decimal(raw: Optional[str], default: str = "0.00") -> Decimal:
     return Decimal(raw.replace(",", "").strip())
 
 
+def _normalize_number_separators(line: str) -> str:
+    # Fix OCR/PDF extraction artifacts: "162 ,988.70" -> "162,988.70" and "716 .18" -> "716.18".
+    line = re.sub(r"(\d)\s*,\s*(\d)", r"\1,\2", line)
+    line = re.sub(r"(\d)\s*\.\s*(\d)", r"\1.\2", line)
+    return line
+
+
 def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     reader = PdfReader(io.BytesIO(pdf_bytes))
     chunks: list[str] = []
@@ -60,36 +70,19 @@ def extract_text_from_pdf(pdf_bytes: bytes) -> str:
 
 def parse_product_lines(text: str) -> list[ParsedLine]:
     parsed: list[ParsedLine] = []
-    lines = [" ".join((ln or "").strip().split()) for ln in text.splitlines()]
+    lines = [_normalize_number_separators(" ".join((ln or "").strip().split())) for ln in text.splitlines()]
 
     for idx, raw in enumerate(lines, start=1):
-        if len(raw) < 12:
+        if len(raw) < 24:
             continue
 
         low = raw.lower()
         if "description" in low and ("qty" in low or "quantity" in low):
             continue
-        if not any(ch.isdigit() for ch in raw):
+        if not raw[0].isdigit():
             continue
 
-        match = FULL_LINE_RE.match(raw)
-        if match:
-            parsed.append(
-                ParsedLine(
-                    line_no=idx,
-                    raw_text=raw,
-                    item_code=match.group("item"),
-                    description=match.group("desc").strip(),
-                    quantity=to_decimal(match.group("qty"), "1.000"),
-                    unit=match.group("unit"),
-                    list_price=to_decimal(match.group("list")),
-                    net_price=to_decimal(match.group("net")),
-                    amount=to_decimal(match.group("amount")),
-                )
-            )
-            continue
-
-        match = SIMPLE_LINE_RE.match(raw)
+        match = STRICT_PRODUCT_LINE_RE.match(raw)
         if match:
             amount = to_decimal(match.group("amount"))
             qty = to_decimal(match.group("qty"), "1.000")
@@ -98,10 +91,10 @@ def parse_product_lines(text: str) -> list[ParsedLine]:
                 ParsedLine(
                     line_no=idx,
                     raw_text=raw,
-                    item_code=match.group("item"),
+                    item_code=match.group("cat"),
                     description=match.group("desc").strip(),
                     quantity=qty,
-                    unit=match.group("unit"),
+                    unit="pcs",
                     list_price=price,
                     net_price=price,
                     amount=amount,

@@ -132,8 +132,16 @@ export const sourcingApi = {
 };
 
 export const quotationIntakeApi = {
-  uploadPdf: (formData: FormData) =>
-    api.post("/quotation-intake/upload", formData, { headers: { "Content-Type": "multipart/form-data" } }),
+  uploadPdf: (formData: FormData, onUploadProgress?: (percent: number) => void) =>
+    api.post("/quotation-intake/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (evt) => {
+        if (!onUploadProgress) return;
+        if (!evt.total || evt.total <= 0) return;
+        const percent = Math.max(0, Math.min(100, Math.round((evt.loaded * 100) / evt.total)));
+        onUploadProgress(percent);
+      },
+    }),
   listDocuments: () => api.get("/quotation-intake/documents"),
   getDocument: (documentId: number) => api.get(`/quotation-intake/documents/${documentId}`),
   deleteDocument: (documentId: number) => api.delete(`/quotation-intake/documents/${documentId}`),

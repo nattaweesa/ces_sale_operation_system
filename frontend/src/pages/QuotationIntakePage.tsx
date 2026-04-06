@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Col, Popconfirm, Row, Space, Table, Tag, Typography, Upload, message } from "antd";
+import { Button, Card, Col, Popconfirm, Progress, Row, Space, Table, Tag, Typography, Upload, message } from "antd";
 import type { UploadProps } from "antd";
 import { InboxOutlined, CheckCircleOutlined, ReloadOutlined, DeleteOutlined } from "@ant-design/icons";
 import { quotationIntakeApi } from "../api";
@@ -10,6 +10,7 @@ export default function QuotationIntakePage() {
   const [lines, setLines] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState<number>(0);
   const [confirming, setConfirming] = useState(false);
   const [selectedLineKeys, setSelectedLineKeys] = useState<number[]>([]);
 
@@ -65,9 +66,14 @@ export default function QuotationIntakePage() {
       formData.append("file", file);
 
       setUploading(true);
+      setUploadPercent(0);
       try {
-        const res = await quotationIntakeApi.uploadPdf(formData);
+        const res = await quotationIntakeApi.uploadPdf(formData, (percent) => {
+          setUploadPercent(percent);
+          options.onProgress?.({ percent });
+        });
         message.success("Upload successful. Product lines extracted.");
+        setUploadPercent(100);
         options.onSuccess?.(res.data);
         setSelectedDoc(res.data.document);
         setLines(res.data.lines || []);
@@ -78,6 +84,7 @@ export default function QuotationIntakePage() {
         message.error(error?.response?.data?.detail || "Upload failed");
       } finally {
         setUploading(false);
+        setTimeout(() => setUploadPercent(0), 400);
       }
     },
   };
@@ -148,8 +155,14 @@ export default function QuotationIntakePage() {
                 <InboxOutlined />
               </p>
               <p className="ant-upload-text">Drop PDF here or click to upload</p>
-              <p className="ant-upload-hint">System stores original file in your user folder and extracts product-like lines.</p>
+              <p className="ant-upload-hint">System stores original file in your user folder and imports only complete rows: Cat no, Description, Brand, Price list, Qty, Amount.</p>
             </Upload.Dragger>
+            {uploading && (
+              <div style={{ marginTop: 12 }}>
+                <Typography.Text>Uploading... {uploadPercent}%</Typography.Text>
+                <Progress percent={uploadPercent} size="small" status="active" />
+              </div>
+            )}
           </Card>
         </Col>
         <Col xs={24} md={14}>

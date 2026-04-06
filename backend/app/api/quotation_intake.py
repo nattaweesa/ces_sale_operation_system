@@ -98,7 +98,10 @@ async def upload_quotation_pdf(
 
     parsed_lines = parse_product_lines(extracted_text)
     if not parsed_lines:
-        raise HTTPException(status_code=400, detail="No product-like rows detected in PDF")
+        raise HTTPException(
+            status_code=400,
+            detail="No complete product rows found. Required: Cat no, Description, Brand, Price list, Qty, Amount.",
+        )
 
     user_dir = os.path.join(settings.storage_path, "uploaded_quotations", str(current_user.id))
     os.makedirs(user_dir, exist_ok=True)
