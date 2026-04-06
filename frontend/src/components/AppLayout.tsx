@@ -4,7 +4,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   FileTextOutlined, ShoppingOutlined, TeamOutlined, ProjectOutlined,
   AppstoreOutlined, TagsOutlined, TagOutlined, SafetyOutlined,
-  UserOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, FunnelPlotOutlined,
+  UserOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, FunnelPlotOutlined, InboxOutlined,
 } from "@ant-design/icons";
 import { useAuthStore } from "../store/authStore";
 
@@ -14,6 +14,10 @@ const navItems = [
   {
     key: "quotations", icon: <FileTextOutlined />, label: "Quotations",
     path: "/quotations",
+  },
+  {
+    key: "quotation-intake", icon: <InboxOutlined />, label: "Upload Quotation PDF",
+    path: "/quotation-intake",
   },
   {
     key: "master", icon: <AppstoreOutlined />, label: "Master Data",

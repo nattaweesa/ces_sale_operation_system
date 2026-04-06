@@ -151,7 +151,7 @@ async def list_quotations(
     project_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     stmt = (
         select(Quotation)
@@ -164,6 +164,8 @@ async def list_quotations(
         stmt = stmt.where(Quotation.project_id == project_id)
     if status:
         stmt = stmt.where(Quotation.status == status)
+    if current_user.role not in ("admin", "manager"):
+        stmt = stmt.where(Quotation.sales_owner_id == current_user.id)
     result = await db.execute(stmt)
     quotations = result.scalars().all()
 

@@ -130,3 +130,12 @@ export const sourcingApi = {
     }
   ) => api.post(`/sourcing/review-queue/${reviewId}/create-product`, data),
 };
+
+export const quotationIntakeApi = {
+  uploadPdf: (formData: FormData) =>
+    api.post("/quotation-intake/upload", formData, { headers: { "Content-Type": "multipart/form-data" } }),
+  listDocuments: () => api.get("/quotation-intake/documents"),
+  getDocument: (documentId: number) => api.get(`/quotation-intake/documents/${documentId}`),
+  confirmMissing: (documentId: number, data: { line_ids: number[] }) =>
+    api.post(`/quotation-intake/documents/${documentId}/confirm-missing`, data),
+};

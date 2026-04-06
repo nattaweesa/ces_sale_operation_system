@@ -17,6 +17,7 @@ import DealsPage from "./pages/DealsPage";
 import DealsDashboardPage from "./pages/DealsDashboardPage";
 import DealsReviewReportPage from "./pages/DealsReviewReportPage";
 import SourcingReviewPage from "./pages/SourcingReviewPage";
+import QuotationIntakePage from "./pages/QuotationIntakePage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="deals-dashboard" element={<DealsDashboardPage />} />
             <Route path="deals-review-report" element={<DealsReviewReportPage />} />
             <Route path="quotations" element={<QuotationsPage />} />
+            <Route path="quotation-intake" element={<QuotationIntakePage />} />
             <Route path="quotations/:id" element={<QuotationDetailPage />} />
             <Route path="boqs/:id" element={<BOQPage />} />
             <Route path="quotations/:id/material-approval" element={<MaterialApprovalPage />} />

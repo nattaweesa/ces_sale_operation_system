@@ -21,6 +21,10 @@ from app.models.sourcing import (
     ProductPriceHistory,
     LineMatchReviewQueue,
 )
+from app.models.quotation_intake import (
+    QuotationIntakeDocument,
+    QuotationIntakeLine,
+)
 
 __all__ = [
     "User",
@@ -30,6 +34,7 @@ __all__ = [
     "Project",
     "BOQ", "BOQItem",
     "Quotation", "QuotationSection", "QuotationLine", "QuotationRevision",
+    "QuotationIntakeDocument", "QuotationIntakeLine",
     "MaterialApprovalPackage", "MaterialApprovalItem",
     "Deal", "DealTask", "DealActivity",
     "SourceDocument", "SourceLineItem", "ProductAlias", "ProductPriceHistory", "LineMatchReviewQueue",
