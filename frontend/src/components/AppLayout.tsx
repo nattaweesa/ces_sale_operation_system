@@ -46,6 +46,10 @@ const navItems = [
     children: [
       { key: "users", icon: <UserOutlined />, label: "Users", path: "/users" },
       { key: "sourcing-review", icon: <FunnelPlotOutlined />, label: "Sourcing Review", path: "/sourcing-review" },
+      { key: "md-upload", icon: <InboxOutlined />, label: "Module1 Upload Batch", path: "/master-data/upload" },
+      { key: "md-candidates", icon: <FunnelPlotOutlined />, label: "Module1 Candidate Queue", path: "/master-data/candidates" },
+      { key: "md-conflicts", icon: <FunnelPlotOutlined />, label: "Module1 Conflicts", path: "/master-data/conflicts" },
+      { key: "md-evidence", icon: <SafetyOutlined />, label: "Module1 Published Evidence", path: "/master-data/published-evidence" },
     ],
   },
 ];

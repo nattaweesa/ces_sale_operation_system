@@ -25,6 +25,18 @@ from app.models.quotation_intake import (
     QuotationIntakeDocument,
     QuotationIntakeLine,
 )
+from app.models.master_data_ingestion import (
+    MasterIngestionBatch,
+    MasterIngestionDocument,
+    MasterIngestionDocumentHeader,
+    MasterIngestionDocumentSection,
+    MasterIngestionRawLine,
+    MasterIngestionNormalizedLine,
+    MasterProductCandidate,
+    MasterCandidateMatchSuggestion,
+    MasterPriceObservation,
+    MasterReviewActionLog,
+)
 
 __all__ = [
     "User",
@@ -35,6 +47,9 @@ __all__ = [
     "BOQ", "BOQItem",
     "Quotation", "QuotationSection", "QuotationLine", "QuotationRevision",
     "QuotationIntakeDocument", "QuotationIntakeLine",
+    "MasterIngestionBatch", "MasterIngestionDocument", "MasterIngestionDocumentHeader", "MasterIngestionDocumentSection",
+    "MasterIngestionRawLine", "MasterIngestionNormalizedLine", "MasterProductCandidate", "MasterCandidateMatchSuggestion",
+    "MasterPriceObservation", "MasterReviewActionLog",
     "MaterialApprovalPackage", "MaterialApprovalItem",
     "Deal", "DealTask", "DealActivity",
     "SourceDocument", "SourceLineItem", "ProductAlias", "ProductPriceHistory", "LineMatchReviewQueue",

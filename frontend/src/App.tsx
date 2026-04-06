@@ -18,6 +18,11 @@ import DealsDashboardPage from "./pages/DealsDashboardPage";
 import DealsReviewReportPage from "./pages/DealsReviewReportPage";
 import SourcingReviewPage from "./pages/SourcingReviewPage";
 import QuotationIntakePage from "./pages/QuotationIntakePage";
+import MasterDataUploadBatchPage from "./pages/MasterDataUploadBatchPage";
+import MasterDataBatchDetailPage from "./pages/MasterDataBatchDetailPage";
+import MasterDataCandidateQueuePage from "./pages/MasterDataCandidateQueuePage";
+import MasterDataConflictResolutionPage from "./pages/MasterDataConflictResolutionPage";
+import MasterDataPublishedEvidencePage from "./pages/MasterDataPublishedEvidencePage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -50,6 +55,11 @@ export default function App() {
             <Route path="deals-review-report" element={<DealsReviewReportPage />} />
             <Route path="quotations" element={<QuotationsPage />} />
             <Route path="quotation-intake" element={<QuotationIntakePage />} />
+            <Route path="master-data/upload" element={<MasterDataUploadBatchPage />} />
+            <Route path="master-data/batches/:batchId" element={<MasterDataBatchDetailPage />} />
+            <Route path="master-data/candidates" element={<MasterDataCandidateQueuePage />} />
+            <Route path="master-data/conflicts" element={<MasterDataConflictResolutionPage />} />
+            <Route path="master-data/published-evidence" element={<MasterDataPublishedEvidencePage />} />
             <Route path="quotations/:id" element={<QuotationDetailPage />} />
             <Route path="boqs/:id" element={<BOQPage />} />
             <Route path="quotations/:id/material-approval" element={<MaterialApprovalPage />} />

@@ -148,3 +148,35 @@ export const quotationIntakeApi = {
   confirmMissing: (documentId: number, data: { line_ids: number[] }) =>
     api.post(`/quotation-intake/documents/${documentId}/confirm-missing`, data),
 };
+
+export const masterDataApi = {
+  uploadBatch: (formData: FormData, onUploadProgress?: (percent: number) => void) =>
+    api.post("/master-data/batches/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (evt) => {
+        if (!onUploadProgress || !evt.total || evt.total <= 0) return;
+        const percent = Math.max(0, Math.min(100, Math.round((evt.loaded * 100) / evt.total)));
+        onUploadProgress(percent);
+      },
+    }),
+  listBatches: (params?: { limit?: number }) => api.get("/master-data/batches", { params }),
+  getBatchDetail: (batchId: number) => api.get(`/master-data/batches/${batchId}`),
+  reprocessBatch: (batchId: number) => api.post(`/master-data/batches/${batchId}/reprocess`),
+  listCandidates: (params?: { status?: string; limit?: number }) => api.get("/master-data/candidates", { params }),
+  getCandidate: (candidateId: number) => api.get(`/master-data/candidates/${candidateId}`),
+  aiCanonical: (candidateId: number, data: { draft_description: string }) =>
+    api.post(`/master-data/candidates/${candidateId}/ai-canonical`, data),
+  reviewCandidate: (
+    candidateId: number,
+    data: {
+      action: "approve_new" | "merge_existing" | "reject";
+      target_product_id?: number;
+      canonical_description?: string;
+      selected_list_price?: number;
+      note?: string;
+    }
+  ) => api.post(`/master-data/candidates/${candidateId}/review`, data),
+  publishedEvidence: (params?: { limit?: number }) => api.get("/master-data/published-evidence", { params }),
+  publishedEvidenceByProduct: (productId: number, params?: { limit?: number }) =>
+    api.get(`/master-data/published-evidence/${productId}`, { params }),
+};
