@@ -19,9 +19,14 @@ export default function CustomersPage() {
 
   const load = async () => {
     setLoading(true);
-    const r = await customersApi.list();
-    setCustomers(r.data);
-    setLoading(false);
+    try {
+      const r = await customersApi.list();
+      setCustomers(r.data);
+    } catch {
+      message.error("Unable to load customers. Please refresh and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
 

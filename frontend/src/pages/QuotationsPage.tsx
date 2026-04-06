@@ -20,11 +20,16 @@ export default function QuotationsPage() {
 
   const load = async () => {
     setLoading(true);
-    const params = projectIdFilter ? { project_id: parseInt(projectIdFilter) } : undefined;
-    const [qRes, pRes] = await Promise.all([quotationsApi.list(params), projectsApi.list()]);
-    setQuotations(qRes.data);
-    setProjects(pRes.data);
-    setLoading(false);
+    try {
+      const params = projectIdFilter ? { project_id: parseInt(projectIdFilter) } : undefined;
+      const [qRes, pRes] = await Promise.all([quotationsApi.list(params), projectsApi.list()]);
+      setQuotations(qRes.data);
+      setProjects(pRes.data);
+    } catch {
+      message.error("Unable to load quotations. Please refresh and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, [projectIdFilter]);
 

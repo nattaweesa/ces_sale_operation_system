@@ -41,15 +41,20 @@ export default function QuotationDetailPage() {
 
   const load = async () => {
     setLoading(true);
-    const [qRes, pRes, uRes] = await Promise.all([
-      quotationsApi.get(qtId),
-      productsApi.list(),
-      usersApi.list(),
-    ]);
-    setQt(qRes.data);
-    setProducts(pRes.data);
-    setUsers(uRes.data);
-    setLoading(false);
+    try {
+      const [qRes, pRes, uRes] = await Promise.all([
+        quotationsApi.get(qtId),
+        productsApi.list(),
+        usersApi.list(),
+      ]);
+      setQt(qRes.data);
+      setProducts(pRes.data);
+      setUsers(uRes.data);
+    } catch {
+      message.error("Unable to load quotation. Please refresh and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, [qtId]);
 

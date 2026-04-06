@@ -26,35 +26,40 @@ export default function MaterialApprovalPage() {
 
   const load = async () => {
     setLoading(true);
-    const [qRes, pkgRes] = await Promise.all([quotationsApi.get(qtId), quotationsApi.listMaterialApprovals(qtId)]);
-    setQt(qRes.data);
-    setPackages(pkgRes.data);
+    try {
+      const [qRes, pkgRes] = await Promise.all([quotationsApi.get(qtId), quotationsApi.listMaterialApprovals(qtId)]);
+      setQt(qRes.data);
+      setPackages(pkgRes.data);
 
-    // Build list of unique products with their attachments from quotation lines
-    const seen = new Set<number>();
-    const opts: AttachmentOption[] = [];
-    for (const line of qRes.data.lines) {
-      if (!line.product_id || seen.has(line.product_id)) continue;
-      seen.add(line.product_id);
-      // Fetch product attachments
-      const { default: api } = await import("../api/client");
-      const attRes = await api.get(`/products/${line.product_id}/attachments`);
-      for (const att of attRes.data) {
-        if (att.file_type === "pdf") {
-          opts.push({
-            productId: line.product_id,
-            productCode: line.item_code || "",
-            productDesc: line.description,
-            brand: line.brand || "",
-            attachmentId: att.id,
-            label: att.label || att.file_name,
-            selected: true,
-          });
+      // Build list of unique products with their attachments from quotation lines
+      const seen = new Set<number>();
+      const opts: AttachmentOption[] = [];
+      for (const line of qRes.data.lines) {
+        if (!line.product_id || seen.has(line.product_id)) continue;
+        seen.add(line.product_id);
+        // Fetch product attachments
+        const { default: api } = await import("../api/client");
+        const attRes = await api.get(`/products/${line.product_id}/attachments`);
+        for (const att of attRes.data) {
+          if (att.file_type === "pdf") {
+            opts.push({
+              productId: line.product_id,
+              productCode: line.item_code || "",
+              productDesc: line.description,
+              brand: line.brand || "",
+              attachmentId: att.id,
+              label: att.label || att.file_name,
+              selected: true,
+            });
+          }
         }
       }
+      setItems(opts);
+    } catch {
+      message.error("Unable to load material approval data. Please refresh and try again.");
+    } finally {
+      setLoading(false);
     }
-    setItems(opts);
-    setLoading(false);
   };
 
   useEffect(() => { load(); }, [qtId]);
