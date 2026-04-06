@@ -14,6 +14,13 @@ from app.models.material_approval import (
 )
 from app.models.deal import Deal, DealTask, DealActivity
 from app.models.audit import AuditLog
+from app.models.sourcing import (
+    SourceDocument,
+    SourceLineItem,
+    ProductAlias,
+    ProductPriceHistory,
+    LineMatchReviewQueue,
+)
 
 __all__ = [
     "User",
@@ -25,5 +32,6 @@ __all__ = [
     "Quotation", "QuotationSection", "QuotationLine", "QuotationRevision",
     "MaterialApprovalPackage", "MaterialApprovalItem",
     "Deal", "DealTask", "DealActivity",
+    "SourceDocument", "SourceLineItem", "ProductAlias", "ProductPriceHistory", "LineMatchReviewQueue",
     "AuditLog",
 ]
