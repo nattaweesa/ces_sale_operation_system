@@ -123,6 +123,25 @@ def _build_snapshot(q: Quotation) -> dict:
     }
 
 
+def _snapshot_renderable(snapshot: dict) -> bool:
+    if not isinstance(snapshot, dict):
+        return False
+    required = ["quotation_number", "project", "customer", "contact", "sales_owner", "lines"]
+    if any(key not in snapshot for key in required):
+        return False
+    if not isinstance(snapshot.get("project"), dict):
+        return False
+    if not isinstance(snapshot.get("customer"), dict):
+        return False
+    if not isinstance(snapshot.get("contact"), dict):
+        return False
+    if not isinstance(snapshot.get("sales_owner"), dict):
+        return False
+    if not isinstance(snapshot.get("lines"), list):
+        return False
+    return True
+
+
 # ────────────────────────────────────────────
 # Quotation CRUD
 # ────────────────────────────────────────────
@@ -424,14 +443,37 @@ async def list_revisions(qt_id: int, db: AsyncSession = Depends(get_db), _: User
 @router.get("/{qt_id}/revisions/{rev}/pdf")
 async def download_revision_pdf(qt_id: int, rev: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
     import os
+    from app.services.pdf_service import generate_quotation_pdf
+
     result = await db.execute(
         select(QuotationRevision).where(QuotationRevision.quotation_id == qt_id, QuotationRevision.revision_number == rev)
     )
     revision = result.scalar_one_or_none()
     if not revision:
         raise HTTPException(status_code=404, detail="Revision not found")
+
     if not revision.pdf_path or not os.path.exists(revision.pdf_path):
-        raise HTTPException(status_code=404, detail="PDF not found")
+        snapshot = revision.snapshot_json if isinstance(revision.snapshot_json, dict) else {}
+
+        # Backward compatibility: old revisions may have incomplete snapshot JSON.
+        if not _snapshot_renderable(snapshot):
+            q = await _load_quotation(qt_id, db)
+            if not q:
+                raise HTTPException(status_code=404, detail="Quotation not found")
+            snapshot = _build_snapshot(q)
+            snapshot["revision"] = rev
+
+        try:
+            pdf_path = await generate_quotation_pdf(snapshot, qt_id, rev, settings)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {exc}") from exc
+
+        revision.pdf_path = pdf_path
+        if not _snapshot_renderable(revision.snapshot_json if isinstance(revision.snapshot_json, dict) else {}):
+            revision.snapshot_json = snapshot
+        await db.commit()
+        await db.refresh(revision)
+
     return FileResponse(
         revision.pdf_path,
         media_type="application/pdf",
