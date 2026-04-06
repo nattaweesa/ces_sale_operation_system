@@ -10,7 +10,17 @@ export default function BrandsPage() {
   const [editRecord, setEditRecord] = useState<any>(null);
   const [form] = Form.useForm();
 
-  const load = async () => { setLoading(true); const r = await brandsApi.list(); setBrands(r.data); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await brandsApi.list();
+      setBrands(r.data || []);
+    } catch {
+      message.error("Unable to load brands. Please refresh and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditRecord(null); form.resetFields(); setOpen(true); };
@@ -18,12 +28,30 @@ export default function BrandsPage() {
 
   const handleSave = async () => {
     const values = await form.validateFields();
-    if (editRecord) { await brandsApi.update(editRecord.id, values); message.success("Brand updated"); }
-    else { await brandsApi.create(values); message.success("Brand created"); }
-    setOpen(false); load();
+    try {
+      if (editRecord) {
+        await brandsApi.update(editRecord.id, values);
+        message.success("Brand updated");
+      } else {
+        await brandsApi.create(values);
+        message.success("Brand created");
+      }
+      setOpen(false);
+      load();
+    } catch {
+      message.error("Unable to save brand. Please try again.");
+    }
   };
 
-  const handleDelete = async (id: number) => { await brandsApi.delete(id); message.success("Deleted"); load(); };
+  const handleDelete = async (id: number) => {
+    try {
+      await brandsApi.delete(id);
+      message.success("Deleted");
+      load();
+    } catch {
+      message.error("Unable to delete brand. Please try again.");
+    }
+  };
 
   return (
     <div>
@@ -32,7 +60,11 @@ export default function BrandsPage() {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>New Brand</Button>
       </div>
       <Table
-        dataSource={brands} rowKey="id" loading={loading} size="small"
+        dataSource={brands}
+        rowKey="id"
+        loading={loading}
+        size="small"
+        pagination={{ pageSize: 50, showSizeChanger: true, pageSizeOptions: [20, 50, 100, 200] }}
         columns={[
           { title: "Brand Name", dataIndex: "name" },
           {

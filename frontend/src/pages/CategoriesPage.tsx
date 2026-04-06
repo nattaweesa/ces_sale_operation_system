@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Table, Button, Modal, Form, Input, Select, Space, Popconfirm, Typography, message } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { categoriesApi } from "../api";
@@ -9,6 +9,13 @@ export default function CategoriesPage() {
   const [open, setOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<any>(null);
   const [form] = Form.useForm();
+  const parentNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const c of cats) {
+      map.set(c.id, c.name);
+    }
+    return map;
+  }, [cats]);
 
   const load = async () => {
     setLoading(true);
@@ -60,12 +67,16 @@ export default function CategoriesPage() {
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>New Category</Button>
       </div>
       <Table
-        dataSource={cats} rowKey="id" loading={loading} size="small"
+        dataSource={cats}
+        rowKey="id"
+        loading={loading}
+        size="small"
+        pagination={{ pageSize: 50, showSizeChanger: true, pageSizeOptions: [20, 50, 100, 200] }}
         columns={[
           { title: "Category Name", dataIndex: "name" },
           {
             title: "Parent", dataIndex: "parent_id",
-            render: (pid: number) => cats.find((c) => c.id === pid)?.name || "—",
+            render: (pid: number) => parentNameMap.get(pid) || "—",
           },
           {
             title: "", width: 100, render: (_: any, r: any) => (
