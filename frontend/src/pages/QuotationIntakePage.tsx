@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Col, Row, Space, Table, Tag, Typography, Upload, message } from "antd";
+import { Button, Card, Col, Popconfirm, Row, Space, Table, Tag, Typography, Upload, message } from "antd";
 import type { UploadProps } from "antd";
-import { InboxOutlined, CheckCircleOutlined, ReloadOutlined } from "@ant-design/icons";
+import { InboxOutlined, CheckCircleOutlined, ReloadOutlined, DeleteOutlined } from "@ant-design/icons";
 import { quotationIntakeApi } from "../api";
 
 export default function QuotationIntakePage() {
@@ -52,7 +52,13 @@ export default function QuotationIntakePage() {
     accept: ".pdf",
     maxCount: 1,
     showUploadList: false,
-    beforeUpload: () => false,
+    beforeUpload: (file) => {
+      const ok = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (!ok) {
+        message.error("Please upload PDF only");
+      }
+      return ok ? true : Upload.LIST_IGNORE;
+    },
     customRequest: async (options) => {
       const file = options.file as File;
       const formData = new FormData();
@@ -62,16 +68,28 @@ export default function QuotationIntakePage() {
       try {
         const res = await quotationIntakeApi.uploadPdf(formData);
         message.success("Upload successful. Product lines extracted.");
+        options.onSuccess?.(res.data);
         setSelectedDoc(res.data.document);
         setLines(res.data.lines || []);
         setSelectedLineKeys([]);
         await loadDocuments();
       } catch (error: any) {
+        options.onError?.(error);
         message.error(error?.response?.data?.detail || "Upload failed");
       } finally {
         setUploading(false);
       }
     },
+  };
+
+  const deleteDocument = async (documentId: number) => {
+    try {
+      await quotationIntakeApi.deleteDocument(documentId);
+      message.success("Deleted uploaded document");
+      await loadDocuments();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || "Delete failed");
+    }
   };
 
   const confirmMissing = async () => {
@@ -106,6 +124,19 @@ export default function QuotationIntakePage() {
           <Button icon={<ReloadOutlined />} onClick={loadDocuments} loading={loading}>
             Refresh
           </Button>
+          {selectedDoc && (
+            <Popconfirm
+              title="Delete this uploaded file?"
+              description="This will remove extracted lines and stored PDF for this document."
+              onConfirm={() => deleteDocument(selectedDoc.id)}
+              okText="Delete"
+              cancelText="Cancel"
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                Delete Selected File
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       </div>
 

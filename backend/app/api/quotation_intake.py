@@ -201,6 +201,29 @@ async def get_document_detail(
     )
 
 
+@router.delete("/documents/{document_id}", status_code=204)
+async def delete_document(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc = await _load_document(document_id, db)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if current_user.role != "admin" and doc.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    file_path = doc.stored_path
+    await db.delete(doc)
+    await db.commit()
+
+    if file_path and os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+
+
 @router.post("/documents/{document_id}/confirm-missing", response_model=QuotationIntakeConfirmOut)
 async def confirm_missing_items(
     document_id: int,
