@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Descriptions, Table, Button, Modal, Form, Input, InputNumber, Select,
-  Tag, Space, Typography, Divider, Statistic, Row, Col, Popconfirm, message, Tabs,
+  Tag, Space, Typography, Divider, Statistic, Row, Col, Popconfirm, message, Tabs, Spin,
 } from "antd";
 import {
   PlusOutlined, DeleteOutlined, SendOutlined, FilePdfOutlined,
-  EditOutlined, CheckCircleOutlined, SafetyOutlined,
+  EditOutlined, CheckCircleOutlined, SafetyOutlined, DownloadOutlined, EyeOutlined,
 } from "@ant-design/icons";
+import apiClient from "../api/client";
 import { quotationsApi, projectsApi, customersApi, productsApi, usersApi } from "../api";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -28,6 +29,11 @@ export default function QuotationDetailPage() {
   const [lineModal, setLineModal] = useState(false);
   const [sectionModal, setSectionModal] = useState(false);
   const [editLine, setEditLine] = useState<any>(null);
+
+  const [pdfModal, setPdfModal] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const prevBlobUrl = useRef<string | null>(null);
 
   const [headerForm] = Form.useForm();
   const [lineForm] = Form.useForm();
@@ -142,6 +148,51 @@ export default function QuotationDetailPage() {
     load();
   };
 
+  const fetchPdfBlob = async (revNum: number): Promise<string> => {
+    const res = await apiClient.get(`/quotations/${qtId}/revisions/${revNum}/pdf`, {
+      responseType: "blob",
+    });
+    return URL.createObjectURL(res.data as Blob);
+  };
+
+  const viewPdf = async (revNum: number) => {
+    setPdfLoading(true);
+    setPdfModal(true);
+    try {
+      if (prevBlobUrl.current) URL.revokeObjectURL(prevBlobUrl.current);
+      const url = await fetchPdfBlob(revNum);
+      prevBlobUrl.current = url;
+      setPdfBlobUrl(url);
+    } catch {
+      message.error("Unable to load PDF. Please try again.");
+      setPdfModal(false);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const downloadPdf = async (revNum: number) => {
+    try {
+      const url = await fetchPdfBlob(revNum);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `quotation_${qt?.quotation_number || qtId}_rev${revNum}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch {
+      message.error("Unable to download PDF. Please try again.");
+    }
+  };
+
+  const closePdfModal = () => {
+    setPdfModal(false);
+    setPdfBlobUrl(null);
+    if (prevBlobUrl.current) {
+      URL.revokeObjectURL(prevBlobUrl.current);
+      prevBlobUrl.current = null;
+    }
+  };
+
   if (loading || !qt) return <div style={{ padding: 40, textAlign: "center" }}>Loading...</div>;
 
   const sectionOptions = qt.sections?.map((s: any) => ({ value: s.id, label: s.label || `Section ${s.id}` })) || [];
@@ -243,11 +294,29 @@ export default function QuotationDetailPage() {
                   { title: "Revision", dataIndex: "revision_number", width: 80 },
                   { title: "Issued At", dataIndex: "issued_at", width: 180, render: (v: string) => new Date(v).toLocaleString() },
                   {
-                    title: "PDF", dataIndex: "pdf_path", render: (_: any, r: any) => r.pdf_path ? (
-                      <a href={quotationsApi.revisionPdfUrl(qtId, r.revision_number)} target="_blank" rel="noreferrer">
-                        <Button size="small" icon={<FilePdfOutlined />}>Download</Button>
-                      </a>
-                    ) : "Generating…",
+                    title: "PDF",
+                    dataIndex: "pdf_path",
+                    render: (_: any, r: any) =>
+                      r.pdf_path ? (
+                        <Space>
+                          <Button
+                            size="small"
+                            icon={<EyeOutlined />}
+                            onClick={() => viewPdf(r.revision_number)}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            size="small"
+                            icon={<DownloadOutlined />}
+                            onClick={() => downloadPdf(r.revision_number)}
+                          >
+                            Download
+                          </Button>
+                        </Space>
+                      ) : (
+                        "Generating…"
+                      ),
                   },
                 ]}
               />
@@ -323,6 +392,35 @@ export default function QuotationDetailPage() {
           </div>
           <Form.Item name="remark" label="Remark"><Input /></Form.Item>
         </Form>
+      </Modal>
+
+      {/* PDF Inline Viewer Modal */}
+      <Modal
+        open={pdfModal}
+        title={
+          <Space>
+            <FilePdfOutlined />
+            {`Quotation ${qt?.quotation_number || ""} — PDF Preview`}
+          </Space>
+        }
+        onCancel={closePdfModal}
+        footer={null}
+        width="90vw"
+        style={{ top: 20 }}
+        styles={{ body: { padding: 0, height: "80vh" } }}
+        destroyOnClose
+      >
+        {pdfLoading ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "80vh" }}>
+            <Spin size="large" tip="Loading PDF…" />
+          </div>
+        ) : pdfBlobUrl ? (
+          <iframe
+            src={pdfBlobUrl}
+            style={{ width: "100%", height: "80vh", border: "none" }}
+            title="Quotation PDF"
+          />
+        ) : null}
       </Modal>
     </div>
   );

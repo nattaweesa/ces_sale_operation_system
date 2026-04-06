@@ -10,7 +10,17 @@ export default function CategoriesPage() {
   const [editRecord, setEditRecord] = useState<any>(null);
   const [form] = Form.useForm();
 
-  const load = async () => { setLoading(true); const r = await categoriesApi.list(); setCats(r.data); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await categoriesApi.list();
+      setCats(r.data || []);
+    } catch {
+      message.error("Unable to load categories. Please refresh and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditRecord(null); form.resetFields(); setOpen(true); };
@@ -18,12 +28,30 @@ export default function CategoriesPage() {
 
   const handleSave = async () => {
     const values = await form.validateFields();
-    if (editRecord) { await categoriesApi.update(editRecord.id, values); message.success("Updated"); }
-    else { await categoriesApi.create(values); message.success("Created"); }
-    setOpen(false); load();
+    try {
+      if (editRecord) {
+        await categoriesApi.update(editRecord.id, values);
+        message.success("Updated");
+      } else {
+        await categoriesApi.create(values);
+        message.success("Created");
+      }
+      setOpen(false);
+      load();
+    } catch {
+      message.error("Unable to save category. Please try again.");
+    }
   };
 
-  const handleDelete = async (id: number) => { await categoriesApi.delete(id); message.success("Deleted"); load(); };
+  const handleDelete = async (id: number) => {
+    try {
+      await categoriesApi.delete(id);
+      message.success("Deleted");
+      load();
+    } catch {
+      message.error("Unable to delete category. Please try again.");
+    }
+  };
 
   return (
     <div>

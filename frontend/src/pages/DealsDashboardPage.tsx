@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Card, Col, Progress, Row, Statistic, Table, Tag, Typography } from "antd";
+import { Card, Col, Progress, Row, Statistic, Table, Tag, Typography, message } from "antd";
 import { dealsApi } from "../api";
 import { useAuthStore } from "../store/authStore";
 
@@ -15,6 +15,8 @@ export default function DealsDashboardPage() {
     try {
       const r = isManager ? await dealsApi.dashboardManager() : await dealsApi.dashboardMy();
       setData(r.data);
+    } catch {
+      message.error("Unable to load dashboard. Please try again.");
     } finally {
       setLoading(false);
     }

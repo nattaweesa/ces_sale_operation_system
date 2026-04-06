@@ -432,4 +432,9 @@ async def download_revision_pdf(qt_id: int, rev: int, db: AsyncSession = Depends
         raise HTTPException(status_code=404, detail="Revision not found")
     if not revision.pdf_path or not os.path.exists(revision.pdf_path):
         raise HTTPException(status_code=404, detail="PDF not found")
-    return FileResponse(revision.pdf_path, media_type="application/pdf", filename=f"quotation_rev{rev}.pdf")
+    return FileResponse(
+        revision.pdf_path,
+        media_type="application/pdf",
+        filename=f"quotation_rev{rev}.pdf",
+        headers={"Content-Disposition": f"inline; filename=quotation_rev{rev}.pdf"},
+    )

@@ -21,10 +21,15 @@ export default function ProjectsPage() {
 
   const load = async () => {
     setLoading(true);
-    const [pRes, cRes] = await Promise.all([projectsApi.list(), customersApi.list()]);
-    setProjects(pRes.data);
-    setCustomers(cRes.data);
-    setLoading(false);
+    try {
+      const [pRes, cRes] = await Promise.all([projectsApi.list(), customersApi.list()]);
+      setProjects(pRes.data);
+      setCustomers(cRes.data);
+    } catch {
+      message.error("Unable to load projects data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
 

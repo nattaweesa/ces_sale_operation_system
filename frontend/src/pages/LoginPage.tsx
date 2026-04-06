@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, Form, Input, Button, Typography, Alert } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import { AxiosError } from "axios";
 import { authApi } from "../api";
 import { useAuthStore } from "../store/authStore";
 
@@ -24,8 +25,17 @@ export default function LoginPage() {
         role: data.role,
       });
       navigate("/quotations");
-    } catch {
-      setError("Invalid username or password");
+    } catch (error) {
+      const err = error as AxiosError<{ detail?: string }>;
+      if (err.code === "ECONNABORTED") {
+        setError("Login timeout. Please try again.");
+      } else if (!err.response) {
+        setError("Cannot reach server. Please check your network and try again.");
+      } else if (err.response.status === 401) {
+        setError("Invalid username or password");
+      } else {
+        setError(err.response.data?.detail || "Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

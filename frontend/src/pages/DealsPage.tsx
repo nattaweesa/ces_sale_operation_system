@@ -72,12 +72,16 @@ export default function DealsPage() {
   const [taskForm] = Form.useForm();
 
   const loadReference = async () => {
-    const [c, p] = await Promise.all([customersApi.list(), projectsApi.list()]);
-    setCustomers(c.data);
-    setProjects(p.data);
-    if (isManager) {
-      const u = await usersApi.list();
-      setOwners(u.data || []);
+    try {
+      const [c, p] = await Promise.all([customersApi.list(), projectsApi.list()]);
+      setCustomers(c.data);
+      setProjects(p.data);
+      if (isManager) {
+        const u = await usersApi.list();
+        setOwners(u.data || []);
+      }
+    } catch {
+      message.error("Unable to load reference data. Please refresh and try again.");
     }
   };
 
@@ -86,6 +90,8 @@ export default function DealsPage() {
     try {
       const r = await dealsApi.list();
       setDeals(r.data || []);
+    } catch {
+      message.error("Unable to load deals. Please refresh and try again.");
     } finally {
       setLoading(false);
     }
