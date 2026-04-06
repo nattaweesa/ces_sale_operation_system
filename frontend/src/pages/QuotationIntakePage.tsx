@@ -14,7 +14,7 @@ export default function QuotationIntakePage() {
   const [confirming, setConfirming] = useState(false);
   const [selectedLineKeys, setSelectedLineKeys] = useState<number[]>([]);
 
-  const pendingRows = useMemo(() => lines.filter((ln) => ln.status === "pending"), [lines]);
+  const pendingRows = useMemo(() => lines.filter((ln) => String(ln.status || "").startsWith("pending")), [lines]);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -102,7 +102,7 @@ export default function QuotationIntakePage() {
   const confirmMissing = async () => {
     if (!selectedDoc) return;
     if (selectedLineKeys.length === 0) {
-      message.warning("Please select at least one new item to create");
+      message.warning("Please select at least one pending item to create");
       return;
     }
 
@@ -155,7 +155,7 @@ export default function QuotationIntakePage() {
                 <InboxOutlined />
               </p>
               <p className="ant-upload-text">Drop PDF here or click to upload</p>
-              <p className="ant-upload-hint">System stores original file in your user folder and imports only complete rows: Cat no, Description, Brand, Price list, Qty, Amount.</p>
+              <p className="ant-upload-hint">System stores original file in your user folder and imports only complete rows. If same cat no has different spec/price, it will be marked CUSTOMIZE.</p>
             </Upload.Dragger>
             {uploading && (
               <div style={{ marginTop: 12 }}>
@@ -188,15 +188,20 @@ export default function QuotationIntakePage() {
       <Card
         title={selectedDoc ? `Extracted Items from: ${selectedDoc.original_filename}` : "Extracted Items"}
         extra={
-          <Button
-            type="primary"
-            icon={<CheckCircleOutlined />}
-            onClick={confirmMissing}
-            loading={confirming}
-            disabled={!selectedDoc || pendingRows.length === 0}
-          >
-            Confirm Selected New Items
-          </Button>
+          <Space>
+            <Tag color="blue">PENDING: add as normal product</Tag>
+            <Tag color="gold">PENDING_CUSTOMIZE: add as customize (manual pricing)</Tag>
+            <Tag color="purple">PENDING_NO_CODE: create item code from description</Tag>
+            <Button
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              onClick={confirmMissing}
+              loading={confirming}
+              disabled={!selectedDoc || pendingRows.length === 0}
+            >
+              Confirm Selected New Items
+            </Button>
+          </Space>
         }
       >
         <Table
@@ -207,7 +212,7 @@ export default function QuotationIntakePage() {
           rowSelection={{
             selectedRowKeys: selectedLineKeys,
             onChange: (keys) => setSelectedLineKeys(keys as number[]),
-            getCheckboxProps: (record) => ({ disabled: record.status !== "pending" }),
+            getCheckboxProps: (record) => ({ disabled: !String(record.status || "").startsWith("pending") }),
           }}
           columns={[
             { title: "Line", dataIndex: "line_no", width: 70 },
@@ -233,7 +238,18 @@ export default function QuotationIntakePage() {
               dataIndex: "status",
               width: 100,
               render: (v: string) => {
-                const color = v === "existing" ? "green" : v === "created" ? "blue" : v === "skipped" ? "default" : "orange";
+                const color =
+                  v === "existing"
+                    ? "green"
+                    : v === "created"
+                      ? "blue"
+                      : v === "skipped"
+                        ? "default"
+                        : v === "pending_customize"
+                          ? "gold"
+                          : v === "pending_no_code"
+                            ? "purple"
+                            : "orange";
                 return <Tag color={color}>{String(v || "").toUpperCase()}</Tag>;
               },
             },

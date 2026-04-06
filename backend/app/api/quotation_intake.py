@@ -25,6 +25,7 @@ from app.schemas.quotation_intake import (
 )
 from app.services.auth import get_current_user
 from app.services.quotation_intake_service import (
+    build_item_code_from_description,
     detect_existing_product,
     ensure_unique_item_code,
     extract_text_from_pdf,
@@ -33,6 +34,7 @@ from app.services.quotation_intake_service import (
 
 settings = get_settings()
 router = APIRouter(prefix="/quotation-intake", tags=["quotation-intake"])
+ALWAYS_CUSTOMIZE_CODES = {"CP-KNX"}
 
 
 async def _load_document(document_id: int, db: AsyncSession) -> QuotationIntakeDocument | None:
@@ -121,13 +123,37 @@ async def upload_quotation_pdf(
     await db.flush()
 
     product_cache = (await db.execute(select(Product))).scalars().all()
-    product_map = {p.id: p for p in product_cache}
+
+    # If same cat no. appears with different descriptions or prices, treat as customized work.
+    grouped: dict[str, list] = {}
+    for line in parsed_lines:
+        if line.item_code:
+            grouped.setdefault(line.item_code.strip().upper(), []).append(line)
+
+    customize_codes = {code for code in ALWAYS_CUSTOMIZE_CODES}
+    for code, rows in grouped.items():
+        descs = {r.description.strip().lower() for r in rows}
+        prices = {str(r.list_price) for r in rows}
+        if len(descs) > 1 or len(prices) > 1:
+            customize_codes.add(code)
 
     existing = 0
     for line in parsed_lines:
-        matched = await detect_existing_product(db, item_code=line.item_code, description=line.description)
-        if matched:
-            existing += 1
+        norm_code = (line.item_code or "").strip().upper()
+
+        matched = None
+        status = "pending"
+
+        if not line.item_code:
+            status = "pending_no_code"
+        elif norm_code in customize_codes:
+            status = "pending_customize"
+        else:
+            matched = await detect_existing_product(db, item_code=line.item_code, description=line.description)
+            if matched:
+                status = "existing"
+                existing += 1
+
         db.add(
             QuotationIntakeLine(
                 document_id=document.id,
@@ -141,7 +167,7 @@ async def upload_quotation_pdf(
                 net_price=line.net_price,
                 amount=line.amount,
                 matched_product_id=matched.id if matched else None,
-                status="existing" if matched else "pending",
+                status=status,
             )
         )
 
@@ -254,25 +280,34 @@ async def confirm_missing_items(
             continue
 
         matched = await detect_existing_product(db, item_code=line.item_code, description=line.description)
-        if matched:
+        if matched and line.status != "pending_customize":
             line.matched_product_id = matched.id
             line.status = "existing"
             existing += 1
             continue
 
-        base_code = (line.item_code or f"OCR-{doc.id}-{line.id}").strip()
+        base_code = (line.item_code or build_item_code_from_description(line.description) or f"OCR-{doc.id}-{line.id}").strip()
         item_code = await ensure_unique_item_code(db, base_code)
         price = line.net_price if line.net_price and line.net_price > 0 else line.list_price
+
+        is_customize = line.status == "pending_customize"
+        final_price = Decimal("0.00") if is_customize else Decimal(price or 0)
+        final_status = "on_request" if is_customize else "active"
+        final_remark = (
+            f"CUSTOMIZE item from intake doc {doc.id}: manual pricing required. Source line amount={line.amount}"
+            if is_customize
+            else f"Created from OCR upload doc {doc.id}"
+        )
 
         product = Product(
             item_code=item_code,
             description=line.description,
-            list_price=Decimal(price or 0),
+            list_price=final_price,
             currency="THB",
-            status="active",
+            status=final_status,
             moq=1,
             lead_time_days=None,
-            remark=f"Created from OCR upload doc {doc.id}",
+            remark=final_remark,
         )
         db.add(product)
         await db.flush()
