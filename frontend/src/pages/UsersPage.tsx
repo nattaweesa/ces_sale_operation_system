@@ -12,19 +12,39 @@ export default function UsersPage() {
   const [editRecord, setEditRecord] = useState<any>(null);
   const [form] = Form.useForm();
 
-  const load = async () => { setLoading(true); const r = await usersApi.list(); setUsers(r.data); setLoading(false); };
+  const load = async () => {
+    try {
+      setLoading(true);
+      const r = await usersApi.list();
+      setUsers(r.data);
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || "Failed to load users");
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditRecord(null); form.resetFields(); setOpen(true); };
   const openEdit = (r: any) => { setEditRecord(r); form.setFieldsValue({ ...r, password: "" }); setOpen(true); };
 
   const handleSave = async () => {
-    const v = await form.validateFields();
-    delete v.confirm_password;
-    if (!v.password) delete v.password;
-    if (editRecord) { await usersApi.update(editRecord.id, v); message.success("User updated"); }
-    else { await usersApi.create(v); message.success("User created"); }
-    setOpen(false); load();
+    try {
+      const v = await form.validateFields();
+      delete v.confirm_password;
+      if (!v.password) delete v.password;
+      if (editRecord) {
+        await usersApi.update(editRecord.id, v);
+        message.success("User updated");
+      } else {
+        await usersApi.create(v);
+        message.success("User created");
+      }
+      setOpen(false);
+      load();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || error?.message || "Failed to save user");
+    }
   };
 
   return (
