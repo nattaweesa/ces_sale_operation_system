@@ -29,5 +29,8 @@ deploy_artifacts/
 .idea/
 *.DS_Store
 
+# Backup notification secrets
+scripts/backup/backup-notify.env
+
 # Alembic
 backend/alembic/versions/*.pyc
