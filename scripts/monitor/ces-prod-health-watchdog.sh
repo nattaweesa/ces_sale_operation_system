@@ -10,6 +10,7 @@ FAIL_COUNT_FILE="${STATE_DIR}/fail_count"
 ACTION_LOCK_FILE="${STATE_DIR}/last_action"
 LAST_NOTIFY_FILE="${STATE_DIR}/last_notify"
 RESTART_THRESHOLD="${RESTART_THRESHOLD:-3}"
+WARNING_THRESHOLD="${WARNING_THRESHOLD:-2}"
 AUTOFIX_COOLDOWN_SECONDS="${AUTOFIX_COOLDOWN_SECONDS:-900}"
 NOTIFY_COOLDOWN_SECONDS="${NOTIFY_COOLDOWN_SECONDS:-1800}"
 
@@ -98,7 +99,7 @@ if (( ${#issues[@]} > 0 )); then
   current_fail=$((current_fail + 1))
   echo "$current_fail" >"$FAIL_COUNT_FILE"
 
-  if (( current_fail == 1 )); then
+  if (( current_fail == WARNING_THRESHOLD )); then
     send_telegram "CES Health WARNING on $(hostname): ${issues[*]}"
   fi
 
@@ -139,7 +140,7 @@ if (( ${#issues[@]} > 0 )); then
   exit 1
 fi
 
-if (( current_fail > 0 )); then
+if (( current_fail >= WARNING_THRESHOLD )); then
   send_telegram "CES Health RECOVERED on $(hostname): all services healthy (previous_fail_count=${current_fail})"
 fi
 
