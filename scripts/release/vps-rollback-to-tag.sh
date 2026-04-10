@@ -69,6 +69,11 @@ if [[ -z "$BACKEND_CID" ]]; then
   exit 6
 fi
 
+# If alembic_version is empty (pre-existing schema), stamp head first
+if ! docker exec "$BACKEND_CID" alembic current 2>&1 | grep -qE '[a-f0-9]{8,}|\(head\)'; then
+  echo "INFO: alembic_version empty — stamping head for pre-existing schema"
+  docker exec "$BACKEND_CID" alembic stamp head
+fi
 docker exec "$BACKEND_CID" alembic upgrade head
 curl -fsS http://localhost:8000/health >/dev/null
 
