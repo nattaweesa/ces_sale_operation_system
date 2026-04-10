@@ -51,6 +51,9 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./scripts/monitor/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./scripts/monitor/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./scripts/monitor/grafana/dashboards:/var/lib/grafana/dashboards:ro
 
 volumes:
   uptime_kuma_data:
