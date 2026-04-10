@@ -31,6 +31,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://ces:${DB_PASSWORD:-ces_secret_prod}@db:5432/ces_sale_operation
       SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      MINIMAX_MODEL: ${MINIMAX_MODEL:-MiniMax-M2.7-highspeed}
       STORAGE_PATH: /app/storage
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       ENVIRONMENT: production
