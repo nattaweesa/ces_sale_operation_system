@@ -55,7 +55,7 @@ export default function DealsReviewReportPage() {
             { title: "Deal", dataIndex: "title", width: 280 },
             { title: "Owner", dataIndex: "owner_name", width: 140 },
             { title: "Customer", dataIndex: "customer_name", width: 170 },
-            { title: "Stage", dataIndex: "stage", width: 120, render: (v: string) => <Tag>{(v || "").toUpperCase()}</Tag> },
+            { title: "CES Stage", dataIndex: "stage", width: 120, render: (v: string) => <Tag>{(v || "").toUpperCase()}</Tag> },
             {
               title: "Risk",
               dataIndex: "risk_level",

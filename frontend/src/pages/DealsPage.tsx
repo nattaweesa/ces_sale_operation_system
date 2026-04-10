@@ -624,7 +624,7 @@ export default function DealsPage() {
             )}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
-            <Form.Item name="deal_cycle_stage" label="Stage" rules={[{ required: true }]}>
+            <Form.Item name="deal_cycle_stage" label="CES Stage" rules={[{ required: true }]}>
               <Select options={STAGE_OPTIONS} />
             </Form.Item>
             <Form.Item name="status" label="Project Status" rules={[{ required: true }]}>
@@ -740,8 +740,8 @@ export default function DealsPage() {
                   <Input.TextArea rows={3} placeholder="What happened this week? Progress, meetings, blockers..." />
                 </Form.Item>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <Form.Item name="deal_cycle_stage" label="Move Stage to (optional)">
-                    <Select allowClear placeholder="Keep current stage" options={STAGE_OPTIONS} />
+                  <Form.Item name="deal_cycle_stage" label="Move CES Stage to (optional)">
+                    <Select allowClear placeholder="Keep current CES stage" options={STAGE_OPTIONS} />
                   </Form.Item>
                   <Form.Item name="status" label="Project Status (optional)">
                     <Select allowClear placeholder="Keep current project status" options={STATUS_OPTIONS} />

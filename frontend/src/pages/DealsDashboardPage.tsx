@@ -158,7 +158,7 @@ export default function DealsDashboardPage() {
           {/* Deal Funnel Bars */}
           {funnel.length > 0 && (
             <div className="px-6 pb-6">
-              <h4 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Deal Stage Breakdown</h4>
+              <h4 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">CES Stage Breakdown</h4>
               <div className="space-y-3">
                 {funnel.map((row) => {
                   const pct = maxFunnelCount > 0 ? Math.round((row.count / maxFunnelCount) * 100) : 0;

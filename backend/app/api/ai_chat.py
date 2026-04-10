@@ -135,7 +135,7 @@ async def _fetch_system_context(db: AsyncSession) -> str:
     lines.append(f"- จำนวน Active Deal: {total_count} รายการ")
     lines.append(f"- มูลค่ารวม (Expected Value): {_fmt(total_value)} บาท\n")
 
-    lines.append("## Deals แยกตาม Stage (deal_cycle_stage)")
+    lines.append("## Deals แยกตาม CES Stage (deal_cycle_stage)")
     for stage, cnt, val in stage_rows:
         lines.append(f"- {stage}: {cnt} deal, มูลค่า {_fmt(val or 0)} บาท")
     lines.append("")
@@ -191,12 +191,12 @@ async def ai_chat_query(
 
     system_prompt = (
         "คุณคือ AI Assistant ของระบบ CES Sale Operation ซึ่งเป็นระบบ CRM / Sales Pipeline ของบริษัท CES Electrical Solutions\n"
-        "คุณตอบได้เฉพาะคำถามที่เกี่ยวกับข้อมูลในระบบนี้เท่านั้น เช่น Deals, Pipeline, Stage, Owner, มูลค่า, ลูกค้า ฯลฯ\n"
+        "คุณตอบได้เฉพาะคำถามที่เกี่ยวกับข้อมูลในระบบนี้เท่านั้น เช่น Deals, Pipeline, CES Stage, Project Status, Owner, มูลค่า, ลูกค้า ฯลฯ\n"
         "ถ้าถามเรื่องที่ไม่เกี่ยวกับระบบนี้ ให้ปฏิเสธอย่างสุภาพ\n"
         "ตอบเป็นภาษาไทยเสมอ ยกเว้นคำศัพท์เฉพาะอาจใช้ภาษาอังกฤษได้\n"
         "ให้คำตอบที่ชัดเจน กระชับ และเป็นประโยชน์\n"
         "ถ้าเป็นข้อมูลเปรียบเทียบ/หลายรายการ ให้ตอบเป็นตาราง Markdown (GFM)\n"
-        "นิยามข้อมูลสำคัญ: deal_cycle_stage คือ Stage ภายในบริษัท CES เช่น lead, qualified, proposal, negotiation, won, lost\n"
+        "นิยามข้อมูลสำคัญ: deal_cycle_stage คือ CES Stage ภายในบริษัท CES เช่น lead, qualified, proposal, negotiation, won, lost\n"
         "นิยามข้อมูลสำคัญ: status คือ Project Status ของหน้างานฝั่งลูกค้า/ผู้รับเหมา เช่น design, bidding, award, on_hold\n"
         "นิยามข้อมูลสำคัญ: expected_value คือมูลค่าคาดการณ์ที่ใช้ในระบบอยู่แล้ว ห้ามนำ expected_value ไปคูณ probability_pct ซ้ำ เว้นแต่ผู้ใช้สั่งให้คำนวณสมมติฐานใหม่อย่างชัดเจน\n"
         "นิยามข้อมูลสำคัญ: probability_pct คือเปอร์เซ็นต์โอกาสของดีล\n"
