@@ -8,7 +8,10 @@ NOTIFY_ENV="${NOTIFY_ENV:-/root/backup-scripts/backup-notify.env}"
 STATE_DIR="${STATE_DIR:-/var/run/ces-prod-health}"
 FAIL_COUNT_FILE="${STATE_DIR}/fail_count"
 ACTION_LOCK_FILE="${STATE_DIR}/last_action"
+LAST_NOTIFY_FILE="${STATE_DIR}/last_notify"
 RESTART_THRESHOLD="${RESTART_THRESHOLD:-3}"
+AUTOFIX_COOLDOWN_SECONDS="${AUTOFIX_COOLDOWN_SECONDS:-900}"
+NOTIFY_COOLDOWN_SECONDS="${NOTIFY_COOLDOWN_SECONDS:-1800}"
 
 mkdir -p "$STATE_DIR"
 
@@ -62,11 +65,29 @@ if curl -fsS --max-time 5 http://localhost:5173/ >/dev/null; then
 fi
 
 issues=()
-[[ "$backend_health" == "healthy" ]] || issues+=("backend:${backend_health}")
-[[ "$frontend_health" == "healthy" ]] || issues+=("frontend:${frontend_health}")
-[[ "$db_health" == "healthy" ]] || issues+=("db:${db_health}")
-[[ $backend_http_ok -eq 1 ]] || issues+=("backend_http:down")
-[[ $frontend_http_ok -eq 1 ]] || issues+=("frontend_http:down")
+backend_problem=0
+frontend_problem=0
+db_problem=0
+
+if [[ "$backend_health" != "healthy" || $backend_http_ok -ne 1 ]]; then
+  backend_problem=1
+  issues+=("backend:${backend_health}/http:${backend_http_ok}")
+fi
+
+# Tolerate frontend warm-up while it is still marked as "starting" but already serves HTTP.
+if [[ "$frontend_health" == "healthy" && $frontend_http_ok -eq 1 ]]; then
+  frontend_problem=0
+elif [[ "$frontend_health" == "starting" && $frontend_http_ok -eq 1 ]]; then
+  frontend_problem=0
+else
+  frontend_problem=1
+  issues+=("frontend:${frontend_health}/http:${frontend_http_ok}")
+fi
+
+if [[ "$db_health" != "healthy" ]]; then
+  db_problem=1
+  issues+=("db:${db_health}")
+fi
 
 current_fail=0
 if [[ -f "$FAIL_COUNT_FILE" ]]; then
@@ -88,11 +109,27 @@ if (( ${#issues[@]} > 0 )); then
       last_action="$(cat "$ACTION_LOCK_FILE" 2>/dev/null || echo 0)"
     fi
 
-    # Prevent restart loops: only one auto-fix attempt every 5 minutes.
-    if (( now_epoch - last_action >= 300 )); then
-      if $COMPOSE up -d --no-deps --force-recreate backend frontend >/dev/null 2>&1; then
+    # Prevent restart loops: only one auto-fix attempt per cooldown window.
+    if (( now_epoch - last_action >= AUTOFIX_COOLDOWN_SECONDS )); then
+      restart_targets=()
+      (( backend_problem == 1 )) && restart_targets+=("backend")
+      (( frontend_problem == 1 )) && restart_targets+=("frontend")
+      (( db_problem == 1 )) && restart_targets+=("db")
+
+      if (( ${#restart_targets[@]} == 0 )); then
+        exit 1
+      fi
+
+      if $COMPOSE up -d --no-deps --force-recreate "${restart_targets[@]}" >/dev/null 2>&1; then
         echo "$now_epoch" >"$ACTION_LOCK_FILE"
-        send_telegram "CES Health AUTO-FIX triggered on $(hostname): restarted backend/frontend (fail_count=${current_fail})"
+        last_notify=0
+        if [[ -f "$LAST_NOTIFY_FILE" ]]; then
+          last_notify="$(cat "$LAST_NOTIFY_FILE" 2>/dev/null || echo 0)"
+        fi
+        if (( now_epoch - last_notify >= NOTIFY_COOLDOWN_SECONDS )); then
+          echo "$now_epoch" >"$LAST_NOTIFY_FILE"
+          send_telegram "CES Health AUTO-FIX triggered on $(hostname): restarted ${restart_targets[*]} (fail_count=${current_fail})"
+        fi
       else
         send_telegram "CES Health AUTO-FIX FAILED on $(hostname): ${issues[*]}"
       fi
