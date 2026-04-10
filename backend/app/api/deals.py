@@ -92,7 +92,7 @@ async def list_deals(
             selectinload(Deal.project),
             selectinload(Deal.owner),
             selectinload(Deal.tasks),
-            selectinload(Deal.activities),
+            selectinload(Deal.activities).selectinload(DealActivity.creator),
         )
         .order_by(Deal.updated_at.desc())
     )
