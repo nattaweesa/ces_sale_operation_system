@@ -280,7 +280,7 @@ export default function AppLayout() {
                           }`}
                         >
                           <span className="material-symbols-outlined text-base">{child.icon}</span>
-                          <span className="font-headline tracking-tight">{child.label}</span>
+                          <span className="font-headline text-[13px] tracking-tight flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">{child.label}</span>
                         </button>
                       );
                     })}
