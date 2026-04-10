@@ -1,0 +1,63 @@
+# Staging Environment - For testing before production
+# Deploy with: docker compose -f docker-compose.staging.yml up -d
+# Uses separate ports and volumes from production
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ces
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ces_secret_staging}
+      POSTGRES_DB: ces_sale_operation_staging
+    volumes:
+      - postgres_data_staging:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ces"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ces:${DB_PASSWORD:-ces_secret_staging}@db:5432/ces_sale_operation_staging
+      SECRET_KEY: ${SECRET_KEY:-change-this-in-staging}
+      STORAGE_PATH: /app/storage
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5174}
+      ENVIRONMENT: staging
+    volumes:
+      - ./backend:/app
+      - storage_data_staging:/app/storage
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: ${API_BASE_URL:-http://backend:8000}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5174:5173"
+    depends_on:
+      - backend
+    command: npm run dev -- --host
+
+volumes:
+  postgres_data_staging:
+  storage_data_staging:

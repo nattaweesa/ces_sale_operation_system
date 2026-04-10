@@ -1,7 +1,36 @@
 import axios from "axios";
 
+// Get base URL from environment or derive from current location
+const getBaseURL = () => {
+  const envBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (envBaseUrl) {
+    return envBaseUrl;
+  }
+
+  if (typeof window !== "undefined" && window.location) {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+
+    // Local development should always use Vite proxy (/api -> backend).
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "/api";
+    }
+
+    // Staging frontend on 5174 should talk to staging backend on 8001.
+    if (port === "5174") {
+      return `${protocol}//${hostname}:8001`;
+    }
+
+    // For domain/reverse-proxy deployments, route API via same host path.
+    return "/api";
+  }
+
+  return "/api";
+};
+
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: getBaseURL(),
   timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });

@@ -220,9 +220,9 @@ export default function QuotationIntakePage() {
             { title: "Description", dataIndex: "description", ellipsis: true },
             { title: "Qty", dataIndex: "quantity", width: 90 },
             { title: "Unit", dataIndex: "unit", width: 80 },
-            { title: "List Price", dataIndex: "list_price", width: 120, render: (v: number) => Number(v || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 }) },
-            { title: "Net Price", dataIndex: "net_price", width: 120, render: (v: number) => Number(v || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 }) },
-            { title: "Amount", dataIndex: "amount", width: 120, render: (v: number) => Number(v || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 }) },
+            { title: "List Price (THB)", dataIndex: "list_price", width: 150, render: (v: number) => Number(v || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 }) },
+            { title: "Net Price (THB)", dataIndex: "net_price", width: 150, render: (v: number) => Number(v || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 }) },
+            { title: "Amount (THB)", dataIndex: "amount", width: 150, render: (v: number) => Number(v || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 }) },
             {
               title: "Match",
               width: 240,

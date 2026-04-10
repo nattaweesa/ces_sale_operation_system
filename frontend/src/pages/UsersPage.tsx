@@ -3,7 +3,7 @@ import { Table, Button, Modal, Form, Input, Select, Tag, Space, Typography, mess
 import { PlusOutlined, EditOutlined } from "@ant-design/icons";
 import { usersApi } from "../api";
 
-const ROLE_COLORS: Record<string, string> = { admin: "red", manager: "blue", sales_admin: "purple", sales: "green" };
+const ROLE_COLORS: Record<string, string> = { admin: "red", manager: "blue", sales_admin: "purple", sales: "green", sale_upload: "orange" };
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -74,6 +74,7 @@ export default function UsersPage() {
                 { value: "manager", label: "Manager" },
                 { value: "sales_admin", label: "Sales Admin" },
                 { value: "sales", label: "Sales" },
+                { value: "sale_upload", label: "Sale Upload" },
               ]} />
             </Form.Item>
           </div>

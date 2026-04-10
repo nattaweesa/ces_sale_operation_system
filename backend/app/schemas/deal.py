@@ -60,6 +60,8 @@ class DealActivityOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    creator_name: Optional[str] = None
+
 
 class DealBase(BaseModel):
     title: str

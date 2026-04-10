@@ -5,8 +5,8 @@ from sqlalchemy import select
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate, UserOut
-from app.services.auth import hash_password, get_current_user, require_roles
+from app.schemas.user import UserCreate, UserUpdate, UserOut, UserSelfUpdate, UserChangePassword
+from app.services.auth import hash_password, verify_password, validate_password_strength, get_current_user, require_roles
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -30,6 +30,10 @@ async def create_user(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Username already exists")
 
+    password_error = validate_password_strength(payload.password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
+
     user = User(
         username=payload.username,
         full_name=payload.full_name,
@@ -46,6 +50,52 @@ async def create_user(
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.put("/me", response_model=UserOut)
+async def update_me(
+    payload: UserSelfUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    user_result = await db.execute(select(User).where(User.id == current_user.id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    updates = payload.model_dump(exclude_none=True)
+    if "full_name" in updates and not str(updates["full_name"]).strip():
+        raise HTTPException(status_code=400, detail="Full name cannot be empty")
+
+    for field, val in updates.items():
+        setattr(user, field, val)
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@router.put("/me/password")
+async def change_my_password(
+    payload: UserChangePassword,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    password_error = validate_password_strength(payload.new_password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
+
+    user_result = await db.execute(select(User).where(User.id == current_user.id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    user.password_hash = hash_password(payload.new_password)
+    await db.commit()
+    return {"message": "Password updated successfully"}
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -76,6 +126,9 @@ async def update_user(
     for field, val in payload.model_dump(exclude_none=True, exclude={"password"}).items():
         setattr(user, field, val)
     if payload.password:
+        password_error = validate_password_strength(payload.password)
+        if password_error:
+            raise HTTPException(status_code=400, detail=password_error)
         user.password_hash = hash_password(payload.password)
 
     await db.commit()

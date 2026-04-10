@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Card, Col, Row, Statistic, Table, Tag, Typography } from "antd";
 import { dealsApi } from "../api";
+import { formatTHB } from "../utils/currency";
 
 const RISK_COLORS: Record<string, string> = {
   low: "green",
@@ -65,10 +66,10 @@ export default function DealsReviewReportPage() {
             { title: "Overdue Tasks", dataIndex: "overdue_tasks", width: 120 },
             { title: "Next Action Date", dataIndex: "next_action_date", width: 130 },
             {
-              title: "Expected Value",
+              title: "Expected Value (THB)",
               dataIndex: "expected_value",
               width: 150,
-              render: (v: number) => Number(v || 0).toLocaleString(),
+              render: (v: number) => formatTHB(v),
             },
           ]}
           pagination={{ pageSize: 12 }}
@@ -88,9 +89,9 @@ export default function DealsReviewReportPage() {
             { title: "Overdue Tasks", dataIndex: "overdue_tasks", width: 110 },
             { title: "Next 7D Actions", dataIndex: "upcoming_7d_actions", width: 120 },
             {
-              title: "Pipeline",
+              title: "Pipeline (THB)",
               dataIndex: "pipeline_amount",
-              render: (v: number) => Number(v || 0).toLocaleString(),
+              render: (v: number) => formatTHB(v),
             },
           ]}
         />

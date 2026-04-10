@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://ces:ces_secret@localhost:5432/ces_sale_operation"
     secret_key: str = "change-this-in-production"
-    access_token_expire_minutes: int = 480
+    access_token_expire_minutes: int = 60
     storage_path: str = "./storage"
     frontend_origin: str = "http://localhost:5173"
     vat_rate: float = 7.0

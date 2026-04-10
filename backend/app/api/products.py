@@ -6,7 +6,7 @@ import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
@@ -16,6 +16,7 @@ from app.models.category import Category
 from app.models.user import User
 from app.schemas.product import ProductCreate, ProductUpdate, ProductOut, ProductAttachmentOut, ProductAttachmentUpdate
 from app.services.auth import get_current_user
+from app.services.rbac import can_user
 from app.config import get_settings
 
 settings = get_settings()
@@ -25,18 +26,35 @@ ALLOWED_ATTACHMENT_TYPES = {"application/pdf", "image/jpeg", "image/png", "image
 
 
 def _build_product_out(product: Product) -> ProductOut:
-    data = ProductOut.model_validate(product)
-    data.brand_name = product.brand.name if product.brand else None
-    data.category_name = product.category.name if product.category else None
-    return data
+    return ProductOut(
+        id=product.id,
+        item_code=product.item_code,
+        description=product.description,
+        brand_id=product.brand_id,
+        category_id=product.category_id,
+        list_price=product.list_price,
+        currency=product.currency,
+        status=product.status,
+        moq=product.moq,
+        lead_time_days=product.lead_time_days,
+        remark=product.remark,
+        is_active=product.is_active,
+        created_at=product.created_at,
+        updated_at=product.updated_at,
+        attachments=[ProductAttachmentOut.model_validate(att) for att in list(product.attachments or [])],
+        brand_name=product.brand.name if product.brand else None,
+        category_name=product.category.name if product.category else None,
+    )
 
 
-@router.get("", response_model=list[ProductOut])
+@router.get("", response_model=dict)
 async def list_products(
     q: Optional[str] = Query(None),
     brand_id: Optional[int] = Query(None),
     category_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -59,13 +77,32 @@ async def list_products(
     if status:
         stmt = stmt.where(Product.status == status)
 
+    # Count total rows for pagination using the same filters.
+    total_query = select(func.count()).select_from(Product)
+    if stmt.whereclause is not None:
+        total_query = total_query.where(stmt.whereclause)
+    total = await db.scalar(total_query) or 0
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    stmt = stmt.offset(offset).limit(page_size)
+
     result = await db.execute(stmt)
     products = result.scalars().all()
-    return [_build_product_out(p) for p in products]
+    
+    return {
+        "data": [_build_product_out(p) for p in products],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": (total + page_size - 1) // page_size,
+    }
 
 
 @router.post("", response_model=ProductOut, status_code=201)
-async def create_product(payload: ProductCreate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def create_product(payload: ProductCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "products.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     product = Product(**payload.model_dump())
     db.add(product)
     await db.commit()
@@ -85,7 +122,9 @@ async def get_product(product_id: int, db: AsyncSession = Depends(get_db), _: Us
 
 
 @router.put("/{product_id}", response_model=ProductOut)
-async def update_product(product_id: int, payload: ProductUpdate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def update_product(product_id: int, payload: ProductUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "products.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     stmt = select(Product).options(selectinload(Product.attachments), selectinload(Product.brand), selectinload(Product.category)).where(Product.id == product_id)
     result = await db.execute(stmt)
     product = result.scalar_one_or_none()
@@ -102,7 +141,9 @@ async def update_product(product_id: int, payload: ProductUpdate, db: AsyncSessi
 
 
 @router.delete("/{product_id}", status_code=204)
-async def delete_product(product_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def delete_product(product_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "products.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
@@ -120,8 +161,11 @@ async def upload_attachment(
     label: str = Form(None),
     sort_order: int = Form(0),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    if not await can_user(db, current_user, "products.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
     if file.content_type not in ALLOWED_ATTACHMENT_TYPES:
         raise HTTPException(status_code=400, detail="Only PDF and image files are allowed")
 
@@ -179,8 +223,11 @@ async def update_attachment(
     att_id: int,
     payload: ProductAttachmentUpdate,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    if not await can_user(db, current_user, "products.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
     result = await db.execute(
         select(ProductAttachment).where(ProductAttachment.id == att_id, ProductAttachment.product_id == product_id)
     )
@@ -195,7 +242,10 @@ async def update_attachment(
 
 
 @router.delete("/{product_id}/attachments/{att_id}", status_code=204)
-async def delete_attachment(product_id: int, att_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def delete_attachment(product_id: int, att_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "products.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
     result = await db.execute(
         select(ProductAttachment).where(ProductAttachment.id == att_id, ProductAttachment.product_id == product_id)
     )

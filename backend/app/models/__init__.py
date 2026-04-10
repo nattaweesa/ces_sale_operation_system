@@ -9,10 +9,12 @@ from app.models.boq import BOQ, BOQItem
 from app.models.quotation import (
     Quotation, QuotationSection, QuotationLine, QuotationRevision
 )
+from app.models.quotation_upload import QuotationUploadFile
 from app.models.material_approval import (
     MaterialApprovalPackage, MaterialApprovalItem
 )
 from app.models.deal import Deal, DealTask, DealActivity
+from app.models.deal_forecast import DealForecastMonthly
 from app.models.audit import AuditLog
 from app.models.sourcing import (
     SourceDocument,
@@ -24,6 +26,15 @@ from app.models.sourcing import (
 from app.models.quotation_intake import (
     QuotationIntakeDocument,
     QuotationIntakeLine,
+)
+from app.models.role_permission import RolePermission
+from app.models.boq_pricing_v2 import (
+    BOQRevisionV2,
+    BOQRevisionItemV2,
+    PricingSessionV2,
+    PricingLineV2,
+    QuotationV2,
+    QuotationSnapshotV2,
 )
 from app.models.master_data_ingestion import (
     MasterIngestionBatch,
@@ -46,12 +57,16 @@ __all__ = [
     "Project",
     "BOQ", "BOQItem",
     "Quotation", "QuotationSection", "QuotationLine", "QuotationRevision",
+    "QuotationUploadFile",
+    "BOQRevisionV2", "BOQRevisionItemV2", "PricingSessionV2", "PricingLineV2", "QuotationV2", "QuotationSnapshotV2",
     "QuotationIntakeDocument", "QuotationIntakeLine",
+    "RolePermission",
     "MasterIngestionBatch", "MasterIngestionDocument", "MasterIngestionDocumentHeader", "MasterIngestionDocumentSection",
     "MasterIngestionRawLine", "MasterIngestionNormalizedLine", "MasterProductCandidate", "MasterCandidateMatchSuggestion",
     "MasterPriceObservation", "MasterReviewActionLog",
     "MaterialApprovalPackage", "MaterialApprovalItem",
     "Deal", "DealTask", "DealActivity",
+    "DealForecastMonthly",
     "SourceDocument", "SourceLineItem", "ProductAlias", "ProductPriceHistory", "LineMatchReviewQueue",
     "AuditLog",
 ]

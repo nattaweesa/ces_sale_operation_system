@@ -1,11 +1,18 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime, date, timezone
 from decimal import Decimal
 from sqlalchemy import Integer, String, Text, DateTime, Date, ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.boq import BOQ
+    from app.models.customer import Customer
+    from app.models.deal_forecast import DealForecastMonthly
+    from app.models.project import Project
+    from app.models.user import User
 
 
 class Deal(Base):
@@ -42,11 +49,15 @@ class Deal(Base):
     customer: Mapped["Optional[Customer]"] = relationship("Customer", lazy="select")
     project: Mapped["Optional[Project]"] = relationship("Project", lazy="select")
     owner: Mapped["User"] = relationship("User", lazy="select")
+    boqs: Mapped[list["BOQ"]] = relationship("BOQ", lazy="select")
     tasks: Mapped[list["DealTask"]] = relationship(
         "DealTask", back_populates="deal", cascade="all, delete-orphan", order_by="DealTask.created_at.desc()"
     )
     activities: Mapped[list["DealActivity"]] = relationship(
         "DealActivity", back_populates="deal", cascade="all, delete-orphan", order_by="DealActivity.created_at.desc()"
+    )
+    forecasts: Mapped[list["DealForecastMonthly"]] = relationship(
+        "DealForecastMonthly", back_populates="deal", cascade="all, delete-orphan", order_by="DealForecastMonthly.id"
     )
 
 

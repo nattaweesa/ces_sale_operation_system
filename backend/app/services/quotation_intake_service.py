@@ -31,6 +31,21 @@ NO_CAT_PRODUCT_LINE_RE = re.compile(
     r"(?P<qty>\d+(?:\.\d{1,3})?)\s+"
     r"(?P<amount>\d[\d,]*(?:\.\d{1,2})?)$"
 )
+NO_BRAND_PRODUCT_LINE_RE = re.compile(
+    r"^(?P<item_no>\d+)\s+"
+    r"(?P<cat>[A-Za-z0-9][A-Za-z0-9_\-\/.]{2,80})\s+"
+    r"(?P<desc>.+?)\s+"
+    r"(?P<list>\d[\d,]*(?:\.\d{1,2})?)\s+"
+    r"(?P<qty>\d+(?:\.\d{1,3})?)\s+"
+    r"(?P<amount>\d[\d,]*(?:\.\d{1,2})?)$"
+)
+NO_CAT_NO_BRAND_PRODUCT_LINE_RE = re.compile(
+    r"^(?P<item_no>\d+)\s+"
+    r"(?P<desc>[A-Za-z].+?)\s+"
+    r"(?P<list>\d[\d,]*(?:\.\d{1,2})?)\s+"
+    r"(?P<qty>\d+(?:\.\d{1,3})?)\s+"
+    r"(?P<amount>\d[\d,]*(?:\.\d{1,2})?)$"
+)
 
 
 @dataclass
@@ -120,8 +135,50 @@ def parse_product_lines(text: str) -> list[ParsedLine]:
             )
             continue
 
+        # Accept rows with cat no. but without brand token.
+        match = NO_BRAND_PRODUCT_LINE_RE.match(raw)
+        if match:
+            amount = to_decimal(match.group("amount"))
+            qty = to_decimal(match.group("qty"), "1.000")
+            price = to_decimal(match.group("list"))
+            parsed.append(
+                ParsedLine(
+                    line_no=idx,
+                    raw_text=raw,
+                    item_code=match.group("cat"),
+                    description=match.group("desc").strip(),
+                    quantity=qty,
+                    unit="pcs",
+                    list_price=price,
+                    net_price=price,
+                    amount=amount,
+                )
+            )
+            continue
+
         # Accept rows without cat no. (e.g. "Interface BAS Local 49,000.00 1 49,000.00").
         match = NO_CAT_PRODUCT_LINE_RE.match(raw)
+        if match:
+            amount = to_decimal(match.group("amount"))
+            qty = to_decimal(match.group("qty"), "1.000")
+            price = to_decimal(match.group("list"))
+            parsed.append(
+                ParsedLine(
+                    line_no=idx,
+                    raw_text=raw,
+                    item_code=None,
+                    description=match.group("desc").strip(),
+                    quantity=qty,
+                    unit="pcs",
+                    list_price=price,
+                    net_price=price,
+                    amount=amount,
+                )
+            )
+            continue
+
+        # Accept rows without cat no. and without brand token.
+        match = NO_CAT_NO_BRAND_PRODUCT_LINE_RE.match(raw)
         if match:
             amount = to_decimal(match.group("amount"))
             qty = to_decimal(match.group("qty"), "1.000")

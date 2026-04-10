@@ -24,6 +24,7 @@ from app.schemas.quotation_intake import (
     QuotationIntakeUploadOut,
 )
 from app.services.auth import get_current_user
+from app.services.rbac import can_user
 from app.services.quotation_intake_service import (
     build_item_code_from_description,
     detect_existing_product,
@@ -102,7 +103,7 @@ async def upload_quotation_pdf(
     if not parsed_lines:
         raise HTTPException(
             status_code=400,
-            detail="No complete product rows found. Required: Cat no, Description, Brand, Price list, Qty, Amount.",
+            detail="No complete product rows found. Required: Description, Price list, Qty, Amount (Cat no/Brand optional when recognizable).",
         )
 
     user_dir = os.path.join(settings.storage_path, "uploaded_quotations", str(current_user.id))
@@ -199,7 +200,7 @@ async def list_documents(
     current_user: User = Depends(get_current_user),
 ):
     stmt = select(QuotationIntakeDocument).order_by(QuotationIntakeDocument.created_at.desc())
-    if current_user.role != "admin":
+    if not await can_user(db, current_user, "quotation_intake.view_all"):
         stmt = stmt.where(QuotationIntakeDocument.user_id == current_user.id)
 
     rows = (await db.execute(stmt)).scalars().all()
@@ -215,7 +216,7 @@ async def get_document_detail(
     doc = await _load_document(document_id, db)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    if current_user.role != "admin" and doc.user_id != current_user.id:
+    if not await can_user(db, current_user, "quotation_intake.view_all") and doc.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     line_product_ids = [ln.matched_product_id for ln in doc.lines if ln.matched_product_id]
@@ -239,7 +240,7 @@ async def delete_document(
     doc = await _load_document(document_id, db)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    if current_user.role != "admin" and doc.user_id != current_user.id:
+    if not await can_user(db, current_user, "quotation_intake.view_all") and doc.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     file_path = doc.stored_path
@@ -263,7 +264,7 @@ async def confirm_missing_items(
     doc = await _load_document(document_id, db)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    if current_user.role != "admin" and doc.user_id != current_user.id:
+    if not await can_user(db, current_user, "quotation_intake.view_all") and doc.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     selected = set(payload.line_ids or [])

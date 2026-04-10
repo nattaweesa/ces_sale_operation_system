@@ -1,6 +1,8 @@
 from __future__ import annotations
+import hashlib
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Optional
+from typing import Optional
+import re
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -16,6 +18,22 @@ settings = get_settings()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+
+def password_token_marker(password_hash: str) -> str:
+    return hashlib.sha256(password_hash.encode("utf-8")).hexdigest()[:16]
+
+
+def validate_password_strength(password: str) -> Optional[str]:
+    if len(password) < 8:
+        return "Password must be at least 8 characters"
+    if not re.search(r"[A-Z]", password):
+        return "Password must include at least 1 uppercase letter"
+    if not re.search(r"[a-z]", password):
+        return "Password must include at least 1 lowercase letter"
+    if not re.search(r"\d", password):
+        return "Password must include at least 1 digit"
+    return None
 
 
 def hash_password(password: str) -> str:
@@ -54,6 +72,11 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
+
+    token_marker = payload.get("pwh")
+    if not token_marker or token_marker != password_token_marker(user.password_hash):
+        raise credentials_exception
+
     return user
 
 

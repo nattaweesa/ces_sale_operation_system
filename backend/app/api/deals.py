@@ -4,13 +4,17 @@ from datetime import datetime, date, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+import sqlalchemy as sa
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.deal import Deal, DealTask, DealActivity
+from app.models.deal_forecast import DealForecastMonthly
+from app.models.project import Project
 from app.models.user import User
+from app.schemas.deal_forecast import DealForecastMonthlyBulkIn, DealForecastMonthlyOut
 from app.schemas.deal import (
     DealCreate, DealUpdate, DealOut,
     DealTaskCreate, DealTaskUpdate, DealTaskOut,
@@ -19,10 +23,15 @@ from app.schemas.deal import (
     ReviewReportOut, ReviewDealRow, ReviewOwnerRow,
 )
 from app.services.auth import get_current_user
+from app.services.rbac import can_user
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
 MANAGER_ROLES = {"admin", "manager", "sales_admin"}
+
+
+def _calc_net_amount(amount: Decimal, win_pct: Decimal) -> Decimal:
+    return (amount * win_pct / Decimal("100")).quantize(Decimal("0.01"))
 
 
 async def _load_deal(deal_id: int, db: AsyncSession) -> Optional[Deal]:
@@ -33,7 +42,7 @@ async def _load_deal(deal_id: int, db: AsyncSession) -> Optional[Deal]:
             selectinload(Deal.project),
             selectinload(Deal.owner),
             selectinload(Deal.tasks),
-            selectinload(Deal.activities),
+            selectinload(Deal.activities).selectinload(DealActivity.creator),
         )
         .where(Deal.id == deal_id)
     )
@@ -58,7 +67,12 @@ def _to_deal_out(deal: Deal) -> DealOut:
     out.project_name = deal.project.name if deal.project else None
     out.owner_name = deal.owner.full_name if deal.owner else None
     out.tasks = [DealTaskOut.model_validate(t) for t in deal.tasks]
-    out.activities = [DealActivityOut.model_validate(a) for a in deal.activities]
+    acts = []
+    for a in deal.activities:
+        ao = DealActivityOut.model_validate(a)
+        ao.creator_name = a.creator.full_name if a.creator else None
+        acts.append(ao)
+    out.activities = acts
     return out
 
 
@@ -82,7 +96,7 @@ async def list_deals(
         .order_by(Deal.updated_at.desc())
     )
 
-    if _is_manager(current_user):
+    if await can_user(db, current_user, "deals.view_all"):
         if owner_id:
             stmt = stmt.where(Deal.owner_id == owner_id)
     else:
@@ -111,6 +125,18 @@ async def create_deal(
 
     if not _is_manager(current_user) and data["owner_id"] != current_user.id:
         raise HTTPException(status_code=403, detail="Sales can only create their own deals")
+
+    # Auto-create Project from Deal if customer is known and no project linked yet
+    if data.get("customer_id") and not data.get("project_id"):
+        auto_project = Project(
+            customer_id=data["customer_id"],
+            name=data["title"],
+            description=data.get("description"),
+            status="active",
+        )
+        db.add(auto_project)
+        await db.flush()
+        data["project_id"] = auto_project.id
 
     deal = Deal(**data)
     db.add(deal)
@@ -142,7 +168,8 @@ async def get_deal(
     deal = await _load_deal(deal_id, db)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-    _assert_access(current_user, deal)
+    if not await can_user(db, current_user, "deals.view_all"):
+        _assert_access(current_user, deal)
     return _to_deal_out(deal)
 
 
@@ -156,7 +183,8 @@ async def update_deal(
     deal = await _load_deal(deal_id, db)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-    _assert_access(current_user, deal)
+    if not await can_user(db, current_user, "deals.view_all"):
+        _assert_access(current_user, deal)
 
     updates = payload.model_dump(exclude_none=True)
 
@@ -190,6 +218,77 @@ async def update_deal(
     return _to_deal_out(full)
 
 
+@router.get("/{deal_id}/monthly-forecasts", response_model=list[DealForecastMonthlyOut])
+async def list_monthly_forecasts(
+    deal_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    deal = await _load_deal(deal_id, db)
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    if not await can_user(db, current_user, "deals.view_all"):
+        _assert_access(current_user, deal)
+
+    rows = await db.execute(
+        select(DealForecastMonthly)
+        .where(DealForecastMonthly.deal_id == deal_id)
+        .order_by(DealForecastMonthly.forecast_year.asc(), DealForecastMonthly.forecast_month.asc())
+    )
+    return rows.scalars().all()
+
+
+@router.put("/{deal_id}/monthly-forecasts", response_model=list[DealForecastMonthlyOut])
+async def replace_monthly_forecasts(
+    deal_id: int,
+    payload: DealForecastMonthlyBulkIn,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    deal = await _load_deal(deal_id, db)
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    if not await can_user(db, current_user, "deals.view_all"):
+        _assert_access(current_user, deal)
+
+    seen: set[tuple[int, int]] = set()
+    for row in payload.items:
+        key = (row.forecast_year, row.forecast_month)
+        if key in seen:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Duplicate monthly forecast for year={row.forecast_year}, month={row.forecast_month}",
+            )
+        seen.add(key)
+
+    await db.execute(
+        sa.delete(DealForecastMonthly).where(DealForecastMonthly.deal_id == deal_id)
+    )
+
+    for row in sorted(payload.items, key=lambda item: (item.forecast_year, item.forecast_month)):
+        amount = Decimal(str(row.amount or 0))
+        win_pct = Decimal(str(row.win_pct or 0))
+        db.add(
+            DealForecastMonthly(
+                deal_id=deal_id,
+                forecast_year=row.forecast_year,
+                forecast_month=row.forecast_month,
+                amount=amount,
+                win_pct=win_pct,
+                net_amount=_calc_net_amount(amount, win_pct),
+                note=row.note,
+            )
+        )
+
+    await db.commit()
+    rows = await db.execute(
+        select(DealForecastMonthly)
+        .where(DealForecastMonthly.deal_id == deal_id)
+        .order_by(DealForecastMonthly.forecast_year.asc(), DealForecastMonthly.forecast_month.asc())
+    )
+    return rows.scalars().all()
+
+
 @router.post("/{deal_id}/tasks", response_model=DealTaskOut, status_code=201)
 async def add_task(
     deal_id: int,
@@ -200,7 +299,8 @@ async def add_task(
     deal = await _load_deal(deal_id, db)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-    _assert_access(current_user, deal)
+    if not await can_user(db, current_user, "deals.view_all"):
+        _assert_access(current_user, deal)
 
     task = DealTask(
         deal_id=deal_id,
@@ -235,7 +335,8 @@ async def update_task(
     deal = await _load_deal(deal_id, db)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-    _assert_access(current_user, deal)
+    if not await can_user(db, current_user, "deals.view_all"):
+        _assert_access(current_user, deal)
 
     result = await db.execute(select(DealTask).where(DealTask.id == task_id, DealTask.deal_id == deal_id))
     task = result.scalar_one_or_none()
@@ -270,7 +371,8 @@ async def add_activity(
     deal = await _load_deal(deal_id, db)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-    _assert_access(current_user, deal)
+    if not await can_user(db, current_user, "deals.view_all"):
+        _assert_access(current_user, deal)
 
     from_stage = deal.deal_cycle_stage
     from_status = deal.status
@@ -302,7 +404,9 @@ async def add_activity(
 
     await db.commit()
     await db.refresh(activity)
-    return DealActivityOut.model_validate(activity)
+    out = DealActivityOut.model_validate(activity)
+    out.creator_name = current_user.full_name
+    return out
 
 
 def _build_dashboard(deals: list[Deal], include_owner: bool) -> DashboardOut:
@@ -402,7 +506,7 @@ async def dashboard_manager(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if not _is_manager(current_user):
+    if not await can_user(db, current_user, "deals.view_all"):
         raise HTTPException(status_code=403, detail="Manager/Admin only")
 
     stmt = select(Deal).options(selectinload(Deal.owner), selectinload(Deal.tasks))
@@ -416,8 +520,7 @@ async def review_report_manager(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if not _is_manager(current_user):
-        raise HTTPException(status_code=403, detail="Manager/Admin only")
+    can_view_all = await can_user(db, current_user, "deals.view_all")
 
     today = date.today()
     next_7 = today.fromordinal(today.toordinal() + 7)
@@ -432,6 +535,8 @@ async def review_report_manager(
         .where(Deal.status.in_(["open", "on_hold"]))
         .order_by(Deal.updated_at.asc())
     )
+    if not can_view_all:
+        stmt = stmt.where(Deal.owner_id == current_user.id)
     result = await db.execute(stmt)
     deals = result.scalars().all()
 

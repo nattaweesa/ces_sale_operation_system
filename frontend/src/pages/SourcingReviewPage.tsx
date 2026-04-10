@@ -18,6 +18,7 @@ import {
 } from "antd";
 import { CheckOutlined, ReloadOutlined, PlayCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { brandsApi, categoriesApi, productsApi, sourcingApi } from "../api";
+import { numberInputFormatter, numberInputParser } from "../utils/currency";
 
 export default function SourcingReviewPage() {
   const [loading, setLoading] = useState(false);
@@ -53,7 +54,7 @@ export default function SourcingReviewPage() {
       ]);
       setStats(statsRes.data);
       setQueue(queueRes.data || []);
-      setProducts(productsRes.data || []);
+      setProducts(productsRes.data?.data || []);
       setBrands(brandsRes.data || []);
       setCategories(categoriesRes.data || []);
     } catch {
@@ -249,7 +250,12 @@ export default function SourcingReviewPage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0 16px" }}>
             <Form.Item name="list_price" label="List Price (THB)">
-              <InputNumber min={0} style={{ width: "100%" }} />
+              <InputNumber
+                min={0}
+                style={{ width: "100%" }}
+                formatter={numberInputFormatter}
+                parser={(v) => numberInputParser(v as string)}
+              />
             </Form.Item>
             <Form.Item name="moq" label="MOQ">
               <InputNumber min={1} style={{ width: "100%" }} />

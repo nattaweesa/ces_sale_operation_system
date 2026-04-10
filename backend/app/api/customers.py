@@ -10,6 +10,7 @@ from app.models.customer import Customer, Contact
 from app.models.user import User
 from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerOut, ContactCreate, ContactUpdate, ContactOut
 from app.services.auth import get_current_user
+from app.services.rbac import can_user
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
@@ -28,7 +29,9 @@ async def list_customers(
 
 
 @router.post("", response_model=CustomerOut, status_code=201)
-async def create_customer(payload: CustomerCreate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def create_customer(payload: CustomerCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "customers.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     customer = Customer(**payload.model_dump())
     db.add(customer)
     await db.commit()
@@ -48,7 +51,9 @@ async def get_customer(customer_id: int, db: AsyncSession = Depends(get_db), _: 
 
 
 @router.put("/{customer_id}", response_model=CustomerOut)
-async def update_customer(customer_id: int, payload: CustomerUpdate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def update_customer(customer_id: int, payload: CustomerUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "customers.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     stmt = select(Customer).options(selectinload(Customer.contacts)).where(Customer.id == customer_id)
     result = await db.execute(stmt)
     customer = result.scalar_one_or_none()
@@ -63,7 +68,9 @@ async def update_customer(customer_id: int, payload: CustomerUpdate, db: AsyncSe
 
 
 @router.delete("/{customer_id}", status_code=204)
-async def delete_customer(customer_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def delete_customer(customer_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "customers.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     result = await db.execute(select(Customer).where(Customer.id == customer_id))
     customer = result.scalar_one_or_none()
     if not customer:
@@ -75,7 +82,9 @@ async def delete_customer(customer_id: int, db: AsyncSession = Depends(get_db), 
 # --- Contacts ---
 
 @router.post("/{customer_id}/contacts", response_model=ContactOut, status_code=201)
-async def add_contact(customer_id: int, payload: ContactCreate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def add_contact(customer_id: int, payload: ContactCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "customers.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     result = await db.execute(select(Customer).where(Customer.id == customer_id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -87,7 +96,9 @@ async def add_contact(customer_id: int, payload: ContactCreate, db: AsyncSession
 
 
 @router.put("/{customer_id}/contacts/{contact_id}", response_model=ContactOut)
-async def update_contact(customer_id: int, contact_id: int, payload: ContactUpdate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def update_contact(customer_id: int, contact_id: int, payload: ContactUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "customers.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     result = await db.execute(select(Contact).where(Contact.id == contact_id, Contact.customer_id == customer_id))
     contact = result.scalar_one_or_none()
     if not contact:
@@ -100,7 +111,9 @@ async def update_contact(customer_id: int, contact_id: int, payload: ContactUpda
 
 
 @router.delete("/{customer_id}/contacts/{contact_id}", status_code=204)
-async def delete_contact(customer_id: int, contact_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def delete_contact(customer_id: int, contact_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not await can_user(db, current_user, "customers.manage"):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     result = await db.execute(select(Contact).where(Contact.id == contact_id, Contact.customer_id == customer_id))
     contact = result.scalar_one_or_none()
     if not contact:

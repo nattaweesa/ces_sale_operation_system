@@ -10,6 +10,7 @@ import {
 } from "@ant-design/icons";
 import apiClient from "../api/client";
 import { quotationsApi, projectsApi, customersApi, productsApi, usersApi } from "../api";
+import { formatTHB, numberInputFormatter, numberInputParser } from "../utils/currency";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "default", issued: "blue", accepted: "green", rejected: "red", cancelled: "orange",
@@ -42,14 +43,22 @@ export default function QuotationDetailPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [qRes, pRes, uRes] = await Promise.all([
+      const [qRes, pRes, uRes] = await Promise.allSettled([
         quotationsApi.get(qtId),
         productsApi.list(),
         usersApi.list(),
       ]);
-      setQt(qRes.data);
-      setProducts(pRes.data);
-      setUsers(uRes.data);
+
+      if (qRes.status !== "fulfilled" || pRes.status !== "fulfilled") {
+        throw new Error("Unable to load required quotation dependencies");
+      }
+
+      setQt(qRes.value.data);
+      setProducts(pRes.value.data?.data || []);
+
+      // Some roles cannot access /users; keep page usable with empty user options.
+      if (uRes.status === "fulfilled") setUsers(uRes.value.data || []);
+      else setUsers([]);
     } catch {
       message.error("Unable to load quotation. Please refresh and try again.");
     } finally {
@@ -209,11 +218,11 @@ export default function QuotationDetailPage() {
     { title: "Item Code", dataIndex: "item_code", width: 120 },
     { title: "Description", dataIndex: "description", ellipsis: true },
     { title: "Brand", dataIndex: "brand", width: 90 },
-    { title: "List Price", dataIndex: "list_price", width: 100, align: "right" as const, render: (v: any) => parseFloat(v).toLocaleString("th-TH", { minimumFractionDigits: 2 }) },
+    { title: "List Price (THB)", dataIndex: "list_price", width: 150, align: "right" as const, render: (v: any) => formatTHB(v) },
     { title: "Disc%", dataIndex: "discount_pct", width: 65, align: "center" as const, render: (v: any) => parseFloat(v) > 0 ? `${v}%` : "—" },
-    { title: "Net Price", dataIndex: "net_price", width: 100, align: "right" as const, render: (v: any) => parseFloat(v).toLocaleString("th-TH", { minimumFractionDigits: 2 }) },
+    { title: "Net Price (THB)", dataIndex: "net_price", width: 150, align: "right" as const, render: (v: any) => formatTHB(v) },
     { title: "Qty", dataIndex: "quantity", width: 55, align: "center" as const },
-    { title: "Amount", dataIndex: "amount", width: 110, align: "right" as const, render: (v: any) => parseFloat(v).toLocaleString("th-TH", { minimumFractionDigits: 2 }) },
+    { title: "Amount (THB)", dataIndex: "amount", width: 150, align: "right" as const, render: (v: any) => formatTHB(v) },
     {
       title: "", width: 80, render: (_: any, r: any) => (
         <Space>
@@ -261,9 +270,9 @@ export default function QuotationDetailPage() {
               <>
                 {/* Totals summary */}
                 <Row gutter={16} style={{ marginBottom: 16 }}>
-                  <Col><Statistic title="Subtotal (THB)" value={parseFloat(qt.subtotal).toLocaleString("th-TH", { minimumFractionDigits: 2 })} /></Col>
-                  <Col><Statistic title={`VAT ${qt.vat_rate}%`} value={parseFloat(qt.vat_amount).toLocaleString("th-TH", { minimumFractionDigits: 2 })} /></Col>
-                  <Col><Statistic title="Grand Total (THB)" value={parseFloat(qt.grand_total).toLocaleString("th-TH", { minimumFractionDigits: 2 })} valueStyle={{ color: "#1a3a5c", fontWeight: "bold" }} /></Col>
+                  <Col><Statistic title="Subtotal (THB)" value={formatTHB(qt.subtotal)} /></Col>
+                  <Col><Statistic title={`VAT ${qt.vat_rate}% (THB)`} value={formatTHB(qt.vat_amount)} /></Col>
+                  <Col><Statistic title="Grand Total (THB)" value={formatTHB(qt.grand_total)} valueStyle={{ color: "#1a3a5c", fontWeight: "bold" }} /></Col>
                 </Row>
                 <Table
                   dataSource={qt.lines} columns={lineColumns} rowKey="id" size="small"
@@ -386,14 +395,14 @@ export default function QuotationDetailPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0 12px" }}>
-            <Form.Item name="list_price" label="List Price"><InputNumber style={{ width: "100%" }} min={0} precision={2} onChange={recalcLine} /></Form.Item>
+            <Form.Item name="list_price" label="List Price (THB)"><InputNumber style={{ width: "100%" }} min={0} precision={2} onChange={recalcLine} formatter={numberInputFormatter} parser={(v) => numberInputParser(v as string)} /></Form.Item>
             <Form.Item name="discount_pct" label="Disc%"><InputNumber style={{ width: "100%" }} min={0} max={100} precision={2} onChange={recalcLine} /></Form.Item>
-            <Form.Item name="net_price" label="Net Price"><InputNumber style={{ width: "100%" }} min={0} precision={2} onChange={recalcLine} /></Form.Item>
+            <Form.Item name="net_price" label="Net Price (THB)"><InputNumber style={{ width: "100%" }} min={0} precision={2} onChange={recalcLine} formatter={numberInputFormatter} parser={(v) => numberInputParser(v as string)} /></Form.Item>
             <Form.Item name="quantity" label="Qty"><InputNumber style={{ width: "100%" }} min={0.001} precision={3} onChange={recalcLine} /></Form.Item>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
             <Form.Item name="unit" label="Unit"><Input placeholder="EA, SET, LOT..." /></Form.Item>
-            <Form.Item name="amount" label="Amount"><InputNumber style={{ width: "100%" }} precision={2} disabled /></Form.Item>
+            <Form.Item name="amount" label="Amount (THB)"><InputNumber style={{ width: "100%" }} precision={2} disabled formatter={numberInputFormatter} parser={(v) => numberInputParser(v as string)} /></Form.Item>
           </div>
           <Form.Item name="remark" label="Remark"><Input /></Form.Item>
         </Form>

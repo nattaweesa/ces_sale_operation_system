@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.database import engine, Base, AsyncSessionLocal
 from app.models import *  # noqa – ensures all models are registered
-from app.api import auth, users, brands, categories, products, customers, projects, boqs, quotations, material_approval, deals, sourcing, quotation_intake, master_data_ingestion
+from app.api import auth, users, brands, categories, products, customers, projects, boqs, quotations, material_approval, deals, sourcing, quotation_intake, master_data_ingestion, boq_pricing_v2, role_permissions, quotation_master_data, quotation_uploads
 from app.services.auth import hash_password
 
 settings = get_settings()
@@ -72,6 +72,10 @@ app.include_router(deals.router)
 app.include_router(sourcing.router)
 app.include_router(quotation_intake.router)
 app.include_router(master_data_ingestion.router)
+app.include_router(quotation_master_data.router)
+app.include_router(boq_pricing_v2.router)
+app.include_router(role_permissions.router)
+app.include_router(quotation_uploads.router)
 
 
 @app.get("/health")

@@ -92,6 +92,39 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod ps
 
 **Only modify production after staging validation:**
 
+### One-Command Domain Deploy (Recommended)
+
+Run from Mac:
+
+```bash
+cd /Users/Nattawee.S/ces_sale_operation
+./scripts/deploy-prod-domain.sh build
+```
+
+Modes:
+- `build` (default): rebuild images and restart services
+- `quick`: restart without image rebuild
+
+What the script does:
+1. Verifies clean git working tree and `main` branch
+2. Pushes latest `main` to origin
+3. Runs VPS pre-deploy backup script
+4. Pulls latest code on VPS and deploys with Docker Compose
+5. Runs `alembic upgrade head`
+6. Verifies domain health checks:
+   - `https://ces.msoftthai.com/login`
+   - `https://ces.msoftthai.com/api/health`
+7. Verifies frontend bundle does not leak direct `:8000` API URL
+
+If deploy fails after backup, restore latest backup on VPS:
+
+```bash
+ssh root@187.77.156.215
+/root/backup-scripts/ces-prod-restore.sh latest
+```
+
+Manual workflow (fallback):
+
 ```bash
 cd /Users/Nattawee.S/ces_sale_operation
 

@@ -3,6 +3,7 @@ import { Table, Button, Modal, Form, Select, Input, Tag, Space, Typography, mess
 import { PlusOutlined, EyeOutlined } from "@ant-design/icons";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { quotationsApi, projectsApi, customersApi } from "../api";
+import { formatTHB } from "../utils/currency";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "default", issued: "blue", accepted: "green", rejected: "red", cancelled: "orange",
@@ -12,6 +13,7 @@ export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
@@ -35,10 +37,33 @@ export default function QuotationsPage() {
 
   const handleCreate = async () => {
     const v = await form.validateFields();
-    const res = await quotationsApi.create(v);
-    message.success(`Quotation ${res.data.quotation_number} created`);
-    setOpen(false);
-    navigate(`/quotations/${res.data.id}`);
+    const selectedProject = projects.find((p) => p.id === v.project_id);
+
+    Modal.confirm({
+      title: "Please confirm quotation creation",
+      content: (
+        <div>
+          <div><strong>Project:</strong> {selectedProject ? `${selectedProject.customer_name} - ${selectedProject.name}` : `#${v.project_id}`}</div>
+          <div><strong>Subject:</strong> {v.subject || "-"}</div>
+          <div><strong>VAT:</strong> {v.vat_rate ?? 7}%</div>
+          <div><strong>Validity:</strong> {v.validity_days ?? 30} days</div>
+        </div>
+      ),
+      okText: "Confirm",
+      cancelText: "Cancel",
+      okButtonProps: { loading: creating },
+      onOk: async () => {
+        setCreating(true);
+        try {
+          const res = await quotationsApi.create(v);
+          message.success(`Quotation ${res.data.quotation_number} created`);
+          setOpen(false);
+          navigate(`/quotations/${res.data.id}`);
+        } finally {
+          setCreating(false);
+        }
+      },
+    });
   };
 
   return (
@@ -61,8 +86,8 @@ export default function QuotationsPage() {
           },
           { title: "Rev.", dataIndex: "current_revision", width: 50, align: "center" as const },
           {
-            title: "Grand Total", dataIndex: "grand_total", width: 130, align: "right" as const,
-            render: (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 2 }),
+            title: "Grand Total (THB)", dataIndex: "grand_total", width: 180, align: "right" as const,
+            render: (v: number) => formatTHB(v),
           },
           {
             title: "", width: 60, render: (_: any, r: any) => (
@@ -72,7 +97,14 @@ export default function QuotationsPage() {
         ]}
       />
 
-      <Modal open={open} title="New Quotation" onOk={handleCreate} onCancel={() => setOpen(false)} okText="Create">
+        <Modal
+          open={open}
+          title="New Quotation"
+          onOk={handleCreate}
+          onCancel={() => setOpen(false)}
+          okText="Continue"
+          confirmLoading={creating}
+        >
         <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
           <Form.Item name="project_id" label="Project" rules={[{ required: true }]}>
             <Select

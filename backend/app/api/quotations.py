@@ -23,6 +23,7 @@ from app.schemas.quotation import (
     QuotationRevisionOut,
 )
 from app.services.auth import get_current_user
+from app.services.rbac import can_user
 from app.config import get_settings
 
 settings = get_settings()
@@ -44,6 +45,13 @@ async def _load_quotation(qid: int, db: AsyncSession) -> Quotation:
     )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def _assert_quotation_access(db: AsyncSession, current_user: User, quotation: Quotation) -> None:
+    if await can_user(db, current_user, "quotations.view_all"):
+        return
+    if quotation.sales_owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
 
 
 def _enrich_quotation(q: Quotation) -> QuotationOut:
@@ -164,7 +172,7 @@ async def list_quotations(
         stmt = stmt.where(Quotation.project_id == project_id)
     if status:
         stmt = stmt.where(Quotation.status == status)
-    if current_user.role not in ("admin", "manager"):
+    if not await can_user(db, current_user, "quotations.view_all"):
         stmt = stmt.where(Quotation.sales_owner_id == current_user.id)
     result = await db.execute(stmt)
     quotations = result.scalars().all()
@@ -250,18 +258,20 @@ async def create_quotation(
 
 
 @router.get("/{qt_id}", response_model=QuotationOut)
-async def get_quotation(qt_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def get_quotation(qt_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     q = await _load_quotation(qt_id, db)
     if not q:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, q)
     return _enrich_quotation(q)
 
 
 @router.put("/{qt_id}", response_model=QuotationOut)
-async def update_quotation(qt_id: int, payload: QuotationUpdate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def update_quotation(qt_id: int, payload: QuotationUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     q = await _load_quotation(qt_id, db)
     if not q:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, q)
     if q.status not in ("draft",):
         raise HTTPException(status_code=400, detail="Only draft quotations can be edited")
 
@@ -277,10 +287,12 @@ async def update_quotation(qt_id: int, payload: QuotationUpdate, db: AsyncSessio
 # ────────────────────────────────────────────
 
 @router.post("/{qt_id}/sections", response_model=QuotationSectionOut, status_code=201)
-async def add_section(qt_id: int, payload: QuotationSectionCreate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def add_section(qt_id: int, payload: QuotationSectionCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     result = await db.execute(select(Quotation).where(Quotation.id == qt_id))
-    if not result.scalar_one_or_none():
+    quotation = result.scalar_one_or_none()
+    if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, quotation)
     section = QuotationSection(quotation_id=qt_id, **payload.model_dump())
     db.add(section)
     await db.commit()
@@ -289,7 +301,13 @@ async def add_section(qt_id: int, payload: QuotationSectionCreate, db: AsyncSess
 
 
 @router.put("/{qt_id}/sections/{sid}", response_model=QuotationSectionOut)
-async def update_section(qt_id: int, sid: int, payload: QuotationSectionUpdate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def update_section(qt_id: int, sid: int, payload: QuotationSectionUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    quote_result = await db.execute(select(Quotation).where(Quotation.id == qt_id))
+    quotation = quote_result.scalar_one_or_none()
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, quotation)
+
     result = await db.execute(select(QuotationSection).where(QuotationSection.id == sid, QuotationSection.quotation_id == qt_id))
     section = result.scalar_one_or_none()
     if not section:
@@ -302,7 +320,13 @@ async def update_section(qt_id: int, sid: int, payload: QuotationSectionUpdate, 
 
 
 @router.delete("/{qt_id}/sections/{sid}", status_code=204)
-async def delete_section(qt_id: int, sid: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def delete_section(qt_id: int, sid: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    quote_result = await db.execute(select(Quotation).where(Quotation.id == qt_id))
+    quotation = quote_result.scalar_one_or_none()
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, quotation)
+
     result = await db.execute(select(QuotationSection).where(QuotationSection.id == sid, QuotationSection.quotation_id == qt_id))
     section = result.scalar_one_or_none()
     if not section:
@@ -316,11 +340,12 @@ async def delete_section(qt_id: int, sid: int, db: AsyncSession = Depends(get_db
 # ────────────────────────────────────────────
 
 @router.post("/{qt_id}/lines", response_model=QuotationLineOut, status_code=201)
-async def add_line(qt_id: int, payload: QuotationLineCreate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def add_line(qt_id: int, payload: QuotationLineCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     result = await db.execute(select(Quotation).where(Quotation.id == qt_id))
     q = result.scalar_one_or_none()
     if not q:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, q)
 
     # Compute net_price and amount
     data = payload.model_dump()
@@ -360,7 +385,13 @@ async def add_line(qt_id: int, payload: QuotationLineCreate, db: AsyncSession = 
 
 
 @router.put("/{qt_id}/lines/{lid}", response_model=QuotationLineOut)
-async def update_line(qt_id: int, lid: int, payload: QuotationLineUpdate, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def update_line(qt_id: int, lid: int, payload: QuotationLineUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    quote_result = await db.execute(select(Quotation).where(Quotation.id == qt_id))
+    quotation = quote_result.scalar_one_or_none()
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, quotation)
+
     result = await db.execute(select(QuotationLine).where(QuotationLine.id == lid, QuotationLine.quotation_id == qt_id))
     line = result.scalar_one_or_none()
     if not line:
@@ -384,7 +415,13 @@ async def update_line(qt_id: int, lid: int, payload: QuotationLineUpdate, db: As
 
 
 @router.delete("/{qt_id}/lines/{lid}", status_code=204)
-async def delete_line(qt_id: int, lid: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def delete_line(qt_id: int, lid: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    quote_result = await db.execute(select(Quotation).where(Quotation.id == qt_id))
+    quotation = quote_result.scalar_one_or_none()
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, quotation)
+
     result = await db.execute(select(QuotationLine).where(QuotationLine.id == lid, QuotationLine.quotation_id == qt_id))
     line = result.scalar_one_or_none()
     if not line:
@@ -411,6 +448,7 @@ async def issue_quotation(
     q = await _load_quotation(qt_id, db)
     if not q:
         raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, q)
 
     snapshot = _build_snapshot(q)
     rev_number = q.current_revision + 1
@@ -435,7 +473,12 @@ async def issue_quotation(
 
 
 @router.get("/{qt_id}/revisions", response_model=list[QuotationRevisionOut])
-async def list_revisions(qt_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def list_revisions(qt_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    quote = await _load_quotation(qt_id, db)
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, quote)
+
     result = await db.execute(
         select(QuotationRevision).where(QuotationRevision.quotation_id == qt_id).order_by(QuotationRevision.revision_number)
     )
@@ -443,7 +486,7 @@ async def list_revisions(qt_id: int, db: AsyncSession = Depends(get_db), _: User
 
 
 @router.get("/{qt_id}/revisions/{rev}/pdf")
-async def download_revision_pdf(qt_id: int, rev: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def download_revision_pdf(qt_id: int, rev: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     import os
     from app.services.pdf_service import generate_quotation_pdf
 
@@ -453,6 +496,11 @@ async def download_revision_pdf(qt_id: int, rev: int, db: AsyncSession = Depends
     revision = result.scalar_one_or_none()
     if not revision:
         raise HTTPException(status_code=404, detail="Revision not found")
+
+    quote = await _load_quotation(qt_id, db)
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    await _assert_quotation_access(db, current_user, quote)
 
     if not revision.pdf_path or not os.path.exists(revision.pdf_path):
         snapshot = revision.snapshot_json if isinstance(revision.snapshot_json, dict) else {}

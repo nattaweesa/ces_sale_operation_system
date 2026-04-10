@@ -23,6 +23,16 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
 
 
+class UserSelfUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+
+
+class UserChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class UserOut(UserBase):
     id: int
     is_active: bool

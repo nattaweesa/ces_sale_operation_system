@@ -36,6 +36,7 @@ class BOQItemOut(BOQItemBase):
 
 class BOQBase(BaseModel):
     project_id: int
+    deal_id: Optional[int] = None
     name: Optional[str] = None
 
 
@@ -50,3 +51,20 @@ class BOQOut(BOQBase):
     items: list[BOQItemOut] = []
 
     model_config = {"from_attributes": True}
+
+
+class BOQImportPreviewRow(BaseModel):
+    seq: int
+    section_label: Optional[str] = None
+    description: str
+    quantity: Decimal = Decimal("1")
+    unit: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class BOQImportPreviewOut(BaseModel):
+    mode: str
+    total_rows: int
+    imported_rows: int
+    skipped_rows: int
+    sample_rows: list[BOQImportPreviewRow]

@@ -8,6 +8,7 @@ import {
   UploadOutlined, DownloadOutlined,
 } from "@ant-design/icons";
 import { productsApi, brandsApi, categoriesApi } from "../api";
+import { formatTHB, numberInputFormatter, numberInputParser } from "../utils/currency";
 
 const STATUS_COLORS: Record<string, string> = {
   active: "green", obsolete: "red", on_request: "orange",
@@ -34,7 +35,7 @@ export default function ProductsPage() {
         brandsApi.list(),
         categoriesApi.list(),
       ]);
-      setProducts(pRes.data);
+      setProducts(pRes.data?.data || []);
       setBrands(bRes.data);
       setCategories(cRes.data);
     } finally {
@@ -94,8 +95,8 @@ export default function ProductsPage() {
     { title: "Brand", dataIndex: "brand_name", width: 110 },
     { title: "Category", dataIndex: "category_name", width: 130 },
     {
-      title: "List Price", dataIndex: "list_price", width: 110, align: "right" as const,
-      render: (v: number) => v.toLocaleString("th-TH", { minimumFractionDigits: 2 }),
+      title: "List Price (THB)", dataIndex: "list_price", width: 140, align: "right" as const,
+      render: (v: number) => formatTHB(v),
     },
     { title: "MOQ", dataIndex: "moq", width: 60, align: "center" as const },
     {
@@ -165,7 +166,13 @@ export default function ProductsPage() {
               <Select options={categories.map((c) => ({ value: c.id, label: c.name }))} allowClear showSearch />
             </Form.Item>
             <Form.Item name="list_price" label="List Price (THB)" initialValue={0}>
-              <InputNumber min={0} precision={2} style={{ width: "100%" }} />
+              <InputNumber
+                min={0}
+                precision={2}
+                style={{ width: "100%" }}
+                formatter={numberInputFormatter}
+                parser={(v) => numberInputParser(v as string)}
+              />
             </Form.Item>
             <Form.Item name="moq" label="MOQ" initialValue={1}>
               <InputNumber min={1} style={{ width: "100%" }} />

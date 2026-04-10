@@ -15,7 +15,7 @@ export const authApi = {
 };
 
 export const productsApi = {
-  list: (params?: { q?: string; brand_id?: number; category_id?: number; status?: string }) =>
+  list: (params?: { q?: string; brand_id?: number; category_id?: number; status?: string; page?: number; page_size?: number }) =>
     api.get("/products", { params }),
   get: (id: number) => api.get(`/products/${id}`),
   create: (data: unknown) => api.post("/products", data),
@@ -42,6 +42,14 @@ export const categoriesApi = {
   delete: (id: number) => api.delete(`/categories/${id}`),
 };
 
+export const quotationUploadsApi = {
+  myUploads: () => api.get("/quotation-uploads/my-uploads"),
+  review: () => api.get("/quotation-uploads/review"),
+  upload: (formData: FormData) => api.post("/quotation-uploads/upload", formData, { headers: { "Content-Type": "multipart/form-data" } }),
+  delete: (id: number) => api.delete(`/quotation-uploads/${id}`),
+  view: (id: number) => api.get(`/quotation-uploads/${id}/view`, { responseType: "blob" }),
+};
+
 export const customersApi = {
   list: (params?: { q?: string }) => api.get("/customers", { params }),
   get: (id: number) => api.get(`/customers/${id}`),
@@ -60,13 +68,40 @@ export const projectsApi = {
 };
 
 export const boqsApi = {
+  list: () => api.get("/boqs"),
   create: (data: unknown) => api.post("/boqs", data),
   get: (id: number) => api.get(`/boqs/${id}`),
   addItem: (id: number, data: unknown) => api.post(`/boqs/${id}/items`, data),
   updateItem: (id: number, itemId: number, data: unknown) => api.put(`/boqs/${id}/items/${itemId}`, data),
   deleteItem: (id: number, itemId: number) => api.delete(`/boqs/${id}/items/${itemId}`),
+  downloadTemplate: () =>
+    api.get(`/boqs/import-template/download`, { responseType: "blob" }),
+  previewImport: (formData: FormData) =>
+    api.post(`/boqs/import-preview`, formData, { headers: { "Content-Type": "multipart/form-data" } }),
   importExcel: (id: number, formData: FormData) =>
     api.post(`/boqs/${id}/import`, formData, { headers: { "Content-Type": "multipart/form-data" } }),
+};
+
+export const boqPricingV2Api = {
+  listBoqRevisions: (params?: { boq_id?: number; project_id?: number }) =>
+    api.get("/v2/boq-revisions", { params }),
+  createRevisionFromBoq: (boqId: number) => api.post(`/v2/boq-revisions/from-boq/${boqId}`),
+  getRevision: (revisionId: number) => api.get(`/v2/boq-revisions/${revisionId}`),
+  listPricingSessionsByBoq: (boqId: number) =>
+    api.get("/v2/pricing-sessions", { params: { boq_id: boqId } }),
+  listPricingSessions: (params?: { project_id?: number }) =>
+    api.get("/v2/pricing-sessions", { params }),
+  createPricingSession: (data: { boq_revision_id: number; currency?: string; vat_rate?: number }) =>
+    api.post("/v2/pricing-sessions", data),
+  getPricingSession: (sessionId: number) => api.get(`/v2/pricing-sessions/${sessionId}`),
+  updatePricingLine: (sessionId: number, lineId: number, data: unknown) =>
+    api.patch(`/v2/pricing-sessions/${sessionId}/lines/${lineId}`, data),
+  finalizePricingSession: (sessionId: number) => api.post(`/v2/pricing-sessions/${sessionId}/finalize`),
+  createQuotationFromPricing: (sessionId: number) => api.post(`/v2/quotations/from-pricing/${sessionId}`),
+  listQuotations: (params?: { project_id?: number }) =>
+    api.get("/v2/quotations", { params }),
+  getQuotation: (quotationId: number) => api.get(`/v2/quotations/${quotationId}`),
+  listSnapshots: (quotationId: number) => api.get(`/v2/quotations/${quotationId}/snapshots`),
 };
 
 export const quotationsApi = {
@@ -92,6 +127,17 @@ export const usersApi = {
   list: () => api.get("/users"),
   create: (data: unknown) => api.post("/users", data),
   update: (id: number, data: unknown) => api.put(`/users/${id}`, data),
+  me: () => api.get("/users/me"),
+  updateMe: (data: { full_name?: string; email?: string }) => api.put("/users/me", data),
+  changeMyPassword: (data: { current_password: string; new_password: string }) => api.put("/users/me/password", data),
+};
+
+export const rolePermissionsApi = {
+  catalog: () => api.get("/role-permissions/catalog"),
+  me: () => api.get("/role-permissions/me"),
+  getByRole: (role: string) => api.get(`/role-permissions/${role}`),
+  updateByRole: (role: string, permissions: Array<{ permission_key: string; is_allowed: boolean }>) =>
+    api.put(`/role-permissions/${role}`, { permissions }),
 };
 
 export const dealsApi = {
@@ -99,6 +145,11 @@ export const dealsApi = {
   get: (id: number) => api.get(`/deals/${id}`),
   create: (data: unknown) => api.post("/deals", data),
   update: (id: number, data: unknown) => api.put(`/deals/${id}`, data),
+  listMonthlyForecasts: (id: number) => api.get(`/deals/${id}/monthly-forecasts`),
+  replaceMonthlyForecasts: (
+    id: number,
+    items: Array<{ forecast_year: number; forecast_month: number; amount: number; win_pct: number; note?: string | null }>
+  ) => api.put(`/deals/${id}/monthly-forecasts`, { items }),
   addTask: (id: number, data: unknown) => api.post(`/deals/${id}/tasks`, data),
   updateTask: (id: number, taskId: number, data: unknown) => api.put(`/deals/${id}/tasks/${taskId}`, data),
   addActivity: (id: number, data: unknown) => api.post(`/deals/${id}/activities`, data),
@@ -147,6 +198,13 @@ export const quotationIntakeApi = {
   deleteDocument: (documentId: number) => api.delete(`/quotation-intake/documents/${documentId}`),
   confirmMissing: (documentId: number, data: { line_ids: number[] }) =>
     api.post(`/quotation-intake/documents/${documentId}/confirm-missing`, data),
+};
+
+export const quotationMasterDataApi = {
+  preview: (formData: FormData) =>
+    api.post("/quotation-master-data/preview", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 };
 
 export const masterDataApi = {
