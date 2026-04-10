@@ -24,6 +24,7 @@ from app.schemas.deal import (
 )
 from app.services.auth import get_current_user
 from app.services.rbac import can_user
+from app.services.activity import log_activity
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
@@ -153,6 +154,8 @@ async def create_deal(
         next_action_date=deal.next_action_date,
     ))
 
+    await log_activity(db, current_user.id, "deal.create",
+                       resource_type="deal", resource_id=deal.id, resource_label=deal.title)
     await db.commit()
 
     full = await _load_deal(deal.id, db)

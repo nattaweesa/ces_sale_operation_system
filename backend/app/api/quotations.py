@@ -23,6 +23,7 @@ from app.schemas.quotation import (
     QuotationRevisionOut,
 )
 from app.services.auth import get_current_user
+from app.services.activity import log_activity
 from app.services.rbac import can_user
 from app.config import get_settings
 
@@ -249,6 +250,8 @@ async def create_quotation(
                 db.add(line)
                 seq += 1
 
+    await log_activity(db, current_user.id, "quotation.create",
+                       resource_type="quotation", resource_id=q.id, resource_label=qt_number)
     await db.commit()
     loaded = await _load_quotation(q.id, db)
     _recalculate(loaded)
@@ -467,6 +470,9 @@ async def issue_quotation(
     pdf_path = await generate_quotation_pdf(snapshot, qt_id, rev_number, settings)
     revision.pdf_path = pdf_path
 
+    await log_activity(db, current_user.id, "quotation.issue",
+                       resource_type="quotation", resource_id=qt_id,
+                       resource_label=q.quotation_number)
     await db.commit()
     await db.refresh(revision)
     return revision

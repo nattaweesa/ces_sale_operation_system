@@ -17,5 +17,6 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(30), default="sales")  # admin | sales | sales_admin | manager | sale_upload
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     quotation_uploads: Mapped[list["QuotationUploadFile"]] = relationship("QuotationUploadFile", back_populates="user", cascade="all, delete-orphan")

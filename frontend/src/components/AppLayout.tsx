@@ -40,6 +40,7 @@ const allNavItems: NavItem[] = [
     key: "admin", label: "Admin", icon: "admin_panel_settings",
     children: [
       { key: "users", label: "Users", icon: "manage_accounts", path: "/users" },
+      { key: "admin-user-sessions", label: "User Sessions", icon: "history", path: "/admin/user-sessions" },
       { key: "admin-role-permissions", label: "Role Permissions", icon: "admin_panel_settings", path: "/admin/role-permissions" },
       { key: "admin-quotation-master-data", label: "Quotation Master Data", icon: "dataset_linked", path: "/admin/quotation-master-data" },
       { key: "admin-monitor-grafana", label: "Grafana", icon: "monitoring", path: "http://187.77.156.215:3000" },
@@ -72,6 +73,7 @@ function getNavItems(role?: string, perms?: Record<string, boolean>): NavItem[] 
         (!isSales || !["boqs", "v2-pricing", "quotations"].includes(c.key)) &&
         (c.key !== "deals-review-report" || canViewDealReview) &&
         (c.key !== "admin-role-permissions" || canConfigureRoles) &&
+        (c.key !== "admin-user-sessions" || canConfigureRoles) &&
         (!["admin-monitor-grafana", "admin-monitor-prometheus", "admin-monitor-kuma"].includes(c.key) || canConfigureRoles)
     );
     if (!children.length) return null;

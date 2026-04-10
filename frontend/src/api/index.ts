@@ -50,6 +50,12 @@ export const quotationUploadsApi = {
   view: (id: number) => api.get(`/quotation-uploads/${id}/view`, { responseType: "blob" }),
 };
 
+export const adminActivityApi = {
+  userSessions: () => api.get("/admin/user-sessions"),
+  getUserActivity: (userId: number, limit = 50, offset = 0) =>
+    api.get(`/admin/user-sessions/${userId}/activity`, { params: { limit, offset } }),
+};
+
 export const customersApi = {
   list: (params?: { q?: string }) => api.get("/customers", { params }),
   get: (id: number) => api.get(`/customers/${id}`),

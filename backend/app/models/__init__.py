@@ -28,6 +28,7 @@ from app.models.quotation_intake import (
     QuotationIntakeLine,
 )
 from app.models.role_permission import RolePermission
+from app.models.user_activity import UserActivityLog
 from app.models.boq_pricing_v2 import (
     BOQRevisionV2,
     BOQRevisionItemV2,

@@ -37,5 +37,6 @@ class UserOut(UserBase):
     id: int
     is_active: bool
     created_at: datetime
+    last_login_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

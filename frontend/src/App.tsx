@@ -22,6 +22,7 @@ import QuotationIntakePage from "./pages/QuotationIntakePage";
 import SaleUploadPage from "./pages/SaleUploadPage";
 import ProductManualEditPage from "./pages/ProductManualEditPage";
 import RolePermissionsPage from "./pages/RolePermissionsPage";
+import UserSessionsPage from "./pages/UserSessionsPage";
 import ProfilePage from "./pages/ProfilePage";
 import QuotationMasterDataPage from "./pages/QuotationMasterDataPage";
 import PricingSessionV2Page from "./pages/PricingSessionV2Page";
@@ -188,6 +189,8 @@ export default function App() {
             <Route path="quotations/:id/material-approval" element={<MaterialApprovalPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="admin/role-permissions" element={<RequireRoles roles={["admin"]}><RolePermissionsPage /></RequireRoles>} />
+                          <Route path="admin/user-sessions" element={<RequireRoles roles={["admin"]}><UserSessionsPage /></RequireRoles>} />
+              <Route path="admin/user-sessions" element={<RequireRoles roles={["admin"]}><UserSessionsPage /></RequireRoles>} />
               <Route path="admin/quotation-master-data" element={<RequireRoles roles={["admin", "manager"]}><QuotationMasterDataPage /></RequireRoles>} />
           </Route>
         </Routes>
