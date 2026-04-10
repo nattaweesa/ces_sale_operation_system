@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button, Input, Typography, Spin, Tag, Tooltip } from "antd";
 import { SendOutlined, RobotOutlined, UserOutlined, ClearOutlined } from "@ant-design/icons";
 import { aiChatApi } from "../api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -23,6 +25,51 @@ const SUGGESTED_QUESTIONS = [
 
 function formatTime(d: Date): string {
   return d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+}
+
+function AssistantMarkdown({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        h1: ({ children }) => <h1 style={{ fontSize: 18, margin: "0 0 8px", fontWeight: 700 }}>{children}</h1>,
+        h2: ({ children }) => <h2 style={{ fontSize: 16, margin: "0 0 8px", fontWeight: 700 }}>{children}</h2>,
+        h3: ({ children }) => <h3 style={{ fontSize: 15, margin: "0 0 6px", fontWeight: 700 }}>{children}</h3>,
+        p: ({ children }) => <p style={{ margin: "0 0 8px" }}>{children}</p>,
+        ul: ({ children }) => <ul style={{ margin: "0 0 8px", paddingLeft: 18 }}>{children}</ul>,
+        ol: ({ children }) => <ol style={{ margin: "0 0 8px", paddingLeft: 18 }}>{children}</ol>,
+        li: ({ children }) => <li style={{ marginBottom: 4 }}>{children}</li>,
+        table: ({ children }) => (
+          <div style={{ overflowX: "auto", marginBottom: 8 }}>
+            <table style={{ borderCollapse: "collapse", minWidth: 520, width: "100%" }}>{children}</table>
+          </div>
+        ),
+        thead: ({ children }) => <thead style={{ background: "#e5e7eb" }}>{children}</thead>,
+        th: ({ children }) => (
+          <th
+            style={{
+              border: "1px solid #d1d5db",
+              padding: "6px 8px",
+              fontSize: 13,
+              fontWeight: 700,
+              textAlign: "left",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td style={{ border: "1px solid #d1d5db", padding: "6px 8px", fontSize: 13, verticalAlign: "top" }}>{children}</td>
+        ),
+        code: ({ children }) => (
+          <code style={{ background: "#e5e7eb", padding: "1px 4px", borderRadius: 4, fontSize: 12 }}>{children}</code>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }
 
 export default function AIChatPage() {
@@ -190,7 +237,7 @@ export default function AIChatPage() {
                   wordBreak: "break-word",
                 }}
               >
-                {msg.content}
+                {msg.role === "assistant" ? <AssistantMarkdown content={msg.content} /> : msg.content}
               </div>
               <Text type="secondary" style={{ fontSize: 11, marginTop: 3, display: "block", textAlign: msg.role === "user" ? "right" : "left", paddingLeft: msg.role === "user" ? 0 : 4 }}>
                 {formatTime(msg.timestamp)}
