@@ -40,11 +40,45 @@ const STAGE_OPTIONS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: "open", label: "Open" },
+  { value: "design", label: "Design" },
+  { value: "bidding", label: "Bidding" },
+  { value: "award", label: "Award" },
   { value: "on_hold", label: "On Hold" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "open", label: "Open (Legacy)" },
   { value: "won", label: "Won" },
   { value: "lost", label: "Lost" },
 ];
+
+const PROJECT_STATUS_LABELS: Record<string, string> = {
+  design: "Design",
+  bidding: "Bidding",
+  award: "Award",
+  on_hold: "On Hold",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  open: "Open",
+  won: "Won",
+  lost: "Lost",
+};
+
+const PROJECT_STATUS_STYLES: Record<string, string> = {
+  design: "bg-sky-50 text-sky-700",
+  bidding: "bg-violet-50 text-violet-700",
+  award: "bg-emerald-50 text-emerald-700",
+  on_hold: "bg-amber-50 text-amber-700",
+  completed: "bg-emerald-50 text-emerald-700",
+  cancelled: "bg-slate-100 text-slate-700",
+  open: "bg-secondary-container text-on-secondary-container",
+  won: "bg-emerald-50 text-emerald-700",
+  lost: "bg-error-container text-on-error-container",
+};
+
+function formatProjectStatus(status?: string) {
+  if (!status) return "Design";
+  return PROJECT_STATUS_LABELS[status] || status.replace("_", " ");
+}
 
 const MONTH_OPTIONS = [
   { value: 1, label: "Jan" },
@@ -135,7 +169,7 @@ export default function DealsPage() {
     dealForm.resetFields();
     dealForm.setFieldsValue({
       deal_cycle_stage: "lead",
-      status: "open",
+      status: "design",
       probability_pct: 10,
       expected_value: 0,
       owner_id: user?.user_id,
@@ -471,15 +505,9 @@ export default function DealsPage() {
                       {/* Top row */}
                       <div className="flex justify-between items-start mb-2">
                         <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide ${
-                          deal.status === "on_hold"
-                            ? "bg-amber-50 text-amber-700"
-                            : isWon
-                            ? "bg-emerald-50 text-emerald-700"
-                            : isLost
-                            ? "bg-error-container text-on-error-container"
-                            : "bg-secondary-container text-on-secondary-container"
+                          PROJECT_STATUS_STYLES[deal.status] || "bg-secondary-container text-on-secondary-container"
                         }`}>
-                          {deal.status?.replace("_", " ") || "open"}
+                          {formatProjectStatus(deal.status)}
                         </span>
                         <div className={`w-2 h-2 rounded-full ${
                           isWon ? "bg-emerald-500" :
@@ -599,7 +627,7 @@ export default function DealsPage() {
             <Form.Item name="deal_cycle_stage" label="Stage" rules={[{ required: true }]}>
               <Select options={STAGE_OPTIONS} />
             </Form.Item>
-            <Form.Item name="status" label="Status" rules={[{ required: true }]}>
+            <Form.Item name="status" label="Project Status" rules={[{ required: true }]}>
               <Select options={STATUS_OPTIONS} />
             </Form.Item>
             <Form.Item name="probability_pct" label="Probability %">
@@ -715,8 +743,8 @@ export default function DealsPage() {
                   <Form.Item name="deal_cycle_stage" label="Move Stage to (optional)">
                     <Select allowClear placeholder="Keep current stage" options={STAGE_OPTIONS} />
                   </Form.Item>
-                  <Form.Item name="status" label="Deal Status (optional)">
-                    <Select allowClear placeholder="Keep current status" options={STATUS_OPTIONS} />
+                  <Form.Item name="status" label="Project Status (optional)">
+                    <Select allowClear placeholder="Keep current project status" options={STATUS_OPTIONS} />
                   </Form.Item>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, alignItems: "end" }}>

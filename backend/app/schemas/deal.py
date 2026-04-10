@@ -70,7 +70,7 @@ class DealBase(BaseModel):
     owner_id: Optional[int] = None
 
     deal_cycle_stage: str = "lead"
-    status: str = "open"
+    status: str = "design"
 
     expected_value: Decimal = Field(default=Decimal("0"))
     probability_pct: int = 10

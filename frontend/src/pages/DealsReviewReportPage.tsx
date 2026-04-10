@@ -40,7 +40,7 @@ export default function DealsReviewReportPage() {
       {error && <Alert type="warning" message={error} style={{ marginBottom: 12 }} />}
 
       <Row gutter={[12, 12]}>
-        <Col xs={12} md={6}><Card loading={loading}><Statistic title="Open Deals" value={data?.total_open_deals || 0} /></Card></Col>
+        <Col xs={12} md={6}><Card loading={loading}><Statistic title="Active Deals" value={data?.total_open_deals || 0} /></Card></Col>
         <Col xs={12} md={6}><Card loading={loading}><Statistic title="At Risk Deals" value={data?.total_at_risk_deals || 0} /></Card></Col>
         <Col xs={12} md={6}><Card loading={loading}><Statistic title="Overdue Tasks" value={data?.total_overdue_tasks || 0} /></Card></Col>
         <Col xs={12} md={6}><Card loading={loading}><Statistic title="Next 7 Days Actions" value={data?.upcoming_7d_actions || 0} /></Card></Col>
@@ -84,7 +84,7 @@ export default function DealsReviewReportPage() {
           dataSource={data?.owner_summary || []}
           columns={[
             { title: "Sales", dataIndex: "owner_name" },
-            { title: "Open Deals", dataIndex: "total_open_deals", width: 90 },
+            { title: "Active Deals", dataIndex: "total_open_deals", width: 90 },
             { title: "At Risk", dataIndex: "at_risk_deals", width: 90 },
             { title: "Overdue Tasks", dataIndex: "overdue_tasks", width: 110 },
             { title: "Next 7D Actions", dataIndex: "upcoming_7d_actions", width: 120 },

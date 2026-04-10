@@ -85,7 +85,7 @@ async def _fetch_system_context(db: AsyncSession) -> str:
         .order_by(Deal.status)
     )).all()
 
-    # 3. Per-owner pipeline (open deals only)
+    # 3. Per-owner pipeline (active deals only; internal CES stage not closed)
     owner_rows = (await db.execute(
         select(
             User.full_name,
@@ -94,7 +94,7 @@ async def _fetch_system_context(db: AsyncSession) -> str:
             func.coalesce(func.avg(Deal.probability_pct), 0),
         )
         .join(User, Deal.owner_id == User.id)
-        .where(Deal.status == "open")
+        .where(Deal.deal_cycle_stage.notin_(["won", "lost"]))
         .group_by(User.full_name)
         .order_by(func.sum(Deal.expected_value).desc())
     )).all()
@@ -122,7 +122,7 @@ async def _fetch_system_context(db: AsyncSession) -> str:
             func.count(Deal.id),
             func.coalesce(func.sum(Deal.expected_value), 0),
         )
-        .where(Deal.status == "open")
+        .where(Deal.deal_cycle_stage.notin_(["won", "lost"]))
     )).one()
 
     # ── Format ──
@@ -131,8 +131,8 @@ async def _fetch_system_context(db: AsyncSession) -> str:
     lines.append("=== ข้อมูลระบบ CES Sale Operation (ข้อมูล ณ ปัจจุบัน) ===\n")
 
     total_count, total_value = totals
-    lines.append(f"## สรุป Open Deals ทั้งหมด")
-    lines.append(f"- จำนวน Open Deal: {total_count} รายการ")
+    lines.append(f"## สรุป Active Deals ทั้งหมด")
+    lines.append(f"- จำนวน Active Deal: {total_count} รายการ")
     lines.append(f"- มูลค่ารวม (Expected Value): {_fmt(total_value)} บาท\n")
 
     lines.append("## Deals แยกตาม Stage (deal_cycle_stage)")
@@ -140,12 +140,12 @@ async def _fetch_system_context(db: AsyncSession) -> str:
         lines.append(f"- {stage}: {cnt} deal, มูลค่า {_fmt(val or 0)} บาท")
     lines.append("")
 
-    lines.append("## Deals แยกตาม Status")
+    lines.append("## Deals แยกตาม Project Status")
     for status, cnt, val in status_rows:
         lines.append(f"- {status}: {cnt} deal, มูลค่า {_fmt(val or 0)} บาท")
     lines.append("")
 
-    lines.append("## Pipeline แยกตาม Sales (Open Deals เท่านั้น)")
+    lines.append("## Pipeline แยกตาม Sales (Active Deals เท่านั้น)")
     for owner_name, cnt, pipeline, avg_prob in owner_rows:
         lines.append(
             f"- {owner_name}: {cnt} deal, Pipeline {_fmt(pipeline)} บาท, avg probability {float(avg_prob):.0f}%"
@@ -156,8 +156,8 @@ async def _fetch_system_context(db: AsyncSession) -> str:
     for d in recent_deals:
         close = str(d.expected_close_date) if d.expected_close_date else "-"
         lines.append(
-            f"- [{d.id}] {d.title} | Owner: {d.full_name} | Stage: {d.deal_cycle_stage} | "
-            f"Status: {d.status} | Value: {_fmt(d.expected_value)} | Prob: {d.probability_pct}% | Close: {close}"
+            f"- [{d.id}] {d.title} | Owner: {d.full_name} | CES Stage: {d.deal_cycle_stage} | "
+            f"Project Status: {d.status} | Value: {_fmt(d.expected_value)} | Prob: {d.probability_pct}% | Close: {close}"
         )
 
     return "\n".join(lines)
@@ -196,8 +196,9 @@ async def ai_chat_query(
         "ตอบเป็นภาษาไทยเสมอ ยกเว้นคำศัพท์เฉพาะอาจใช้ภาษาอังกฤษได้\n"
         "ให้คำตอบที่ชัดเจน กระชับ และเป็นประโยชน์\n"
         "ถ้าเป็นข้อมูลเปรียบเทียบ/หลายรายการ ให้ตอบเป็นตาราง Markdown (GFM)\n"
+        "นิยามข้อมูลสำคัญ: deal_cycle_stage คือ Stage ภายในบริษัท CES เช่น lead, qualified, proposal, negotiation, won, lost\n"
+        "นิยามข้อมูลสำคัญ: status คือ Project Status ของหน้างานฝั่งลูกค้า/ผู้รับเหมา เช่น design, bidding, award, on_hold\n"
         "นิยามข้อมูลสำคัญ: expected_value คือมูลค่าคาดการณ์ที่ใช้ในระบบอยู่แล้ว ห้ามนำ expected_value ไปคูณ probability_pct ซ้ำ เว้นแต่ผู้ใช้สั่งให้คำนวณสมมติฐานใหม่อย่างชัดเจน\n"
-        "นิยามข้อมูลสำคัญ: status เป็นสถานะข้อความ (open/on_hold/won/lost) ไม่ใช่เปอร์เซ็นต์\n"
         "นิยามข้อมูลสำคัญ: probability_pct คือเปอร์เซ็นต์โอกาสของดีล\n"
         "หากมีการคำนวณ ให้ระบุสูตรและตัวแปรที่ใช้ให้ชัดเจน และแยกผลคำนวณใหม่ออกจากค่าจริงในระบบ\n"
         "อย่าใส่ <think> หรือ reasoning ภายในคำตอบ\n\n"

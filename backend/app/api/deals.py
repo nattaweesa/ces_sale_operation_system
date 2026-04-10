@@ -29,10 +29,23 @@ from app.services.activity import log_activity
 router = APIRouter(prefix="/deals", tags=["deals"])
 
 MANAGER_ROLES = {"admin", "manager", "sales_admin"}
+CLOSED_STAGES = {"won", "lost"}
 
 
 def _calc_net_amount(amount: Decimal, win_pct: Decimal) -> Decimal:
     return (amount * win_pct / Decimal("100")).quantize(Decimal("0.01"))
+
+
+def _is_active_deal(deal: Deal) -> bool:
+    return (deal.deal_cycle_stage or "").lower() not in CLOSED_STAGES
+
+
+def _is_won_deal(deal: Deal) -> bool:
+    return (deal.deal_cycle_stage or "").lower() == "won"
+
+
+def _is_lost_deal(deal: Deal) -> bool:
+    return (deal.deal_cycle_stage or "").lower() == "lost"
 
 
 async def _load_deal(deal_id: int, db: AsyncSession) -> Optional[Deal]:
@@ -416,10 +429,10 @@ def _build_dashboard(deals: list[Deal], include_owner: bool) -> DashboardOut:
     today = date.today()
 
     total_deals = len(deals)
-    open_deals = len([d for d in deals if d.status in ("open", "on_hold")])
-    won_deals = len([d for d in deals if d.status == "won"])
-    lost_deals = len([d for d in deals if d.status == "lost"])
-    pipeline_amount = sum((d.expected_value or Decimal("0")) for d in deals if d.status in ("open", "on_hold"))
+    open_deals = len([d for d in deals if _is_active_deal(d)])
+    won_deals = len([d for d in deals if _is_won_deal(d)])
+    lost_deals = len([d for d in deals if _is_lost_deal(d)])
+    pipeline_amount = sum((d.expected_value or Decimal("0")) for d in deals if _is_active_deal(d))
 
     task_list = [t for d in deals for t in d.tasks if t.status in ("todo", "in_progress")]
     overdue_tasks = len([t for t in task_list if t.due_date and t.due_date < today])
@@ -453,12 +466,12 @@ def _build_dashboard(deals: list[Deal], include_owner: bool) -> DashboardOut:
                 "pipeline_amount": Decimal("0"),
             })
             slot["total_deals"] = int(slot["total_deals"]) + 1
-            if d.status in ("open", "on_hold"):
+            if _is_active_deal(d):
                 slot["open_deals"] = int(slot["open_deals"]) + 1
                 slot["pipeline_amount"] = Decimal(slot["pipeline_amount"]) + (d.expected_value or Decimal("0"))
-            elif d.status == "won":
+            elif _is_won_deal(d):
                 slot["won_deals"] = int(slot["won_deals"]) + 1
-            elif d.status == "lost":
+            elif _is_lost_deal(d):
                 slot["lost_deals"] = int(slot["lost_deals"]) + 1
 
         owner_summary = [
@@ -535,7 +548,7 @@ async def review_report_manager(
             selectinload(Deal.customer),
             selectinload(Deal.tasks),
         )
-        .where(Deal.status.in_(["open", "on_hold"]))
+        .where(Deal.deal_cycle_stage.notin_(["won", "lost"]))
         .order_by(Deal.updated_at.asc())
     )
     if not can_view_all:

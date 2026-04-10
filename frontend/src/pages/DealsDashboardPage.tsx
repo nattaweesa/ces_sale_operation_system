@@ -43,7 +43,7 @@ export default function DealsDashboardPage() {
       label: "Total Pipeline",
       value: fmt(pipeline),
       icon: "account_balance_wallet",
-      badge: { text: `${openDeals} open`, color: "emerald" },
+      badge: { text: `${openDeals} active`, color: "emerald" },
       barColor: "bg-primary-container",
       barWidth: "75%",
       iconBg: "bg-primary-fixed",
@@ -222,7 +222,7 @@ export default function DealsDashboardPage() {
               <table className="w-full text-left">
                 <thead className="bg-surface-container-low/50">
                   <tr>
-                    {["Sales Rep", "Total", "Open", "Won", "Lost", "Pipeline"].map((h) => (
+                    {["Sales Rep", "Total", "Active", "Won", "Lost", "Pipeline"].map((h) => (
                       <th key={h} className="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>

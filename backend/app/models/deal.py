@@ -25,7 +25,7 @@ class Deal(Base):
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
     deal_cycle_stage: Mapped[str] = mapped_column(String(30), default="lead")
-    status: Mapped[str] = mapped_column(String(20), default="open")  # open | on_hold | won | lost
+    status: Mapped[str] = mapped_column(String(20), default="design")  # design | bidding | award | on_hold | legacy values may still exist
 
     expected_value: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
     probability_pct: Mapped[int] = mapped_column(Integer, default=10)

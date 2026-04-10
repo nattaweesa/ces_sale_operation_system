@@ -18,7 +18,7 @@ interface Message {
 const SUGGESTED_QUESTIONS = [
   "ตอนนี้มี Deal ที่อยู่ stage ไหนบ้าง และมีกี่ deal?",
   "Sales คนไหนมี Pipeline มากที่สุด?",
-  "มี Deal ที่ Status เป็น open ทั้งหมดกี่ deal มูลค่าเท่าไร?",
+  "มี Deal ที่ Project Status เป็น Design, Bidding, Award อย่างละกี่ deal?",
   "ขอดู 5 Deal ล่าสุดที่อัปเดต",
   "สรุป Pipeline ของแต่ละ Sales ให้หน่อย",
 ];
@@ -157,7 +157,7 @@ export default function AIChatPage() {
           <div>
             <Text strong style={{ fontSize: 15 }}>CES AI Assistant</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>ถามข้อมูล Deal, Pipeline, Sales ในระบบได้เลย</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>ถามข้อมูล Deal, Pipeline, Stage และ Project Status ในระบบได้เลย</Text>
           </div>
         </div>
         {messages.length > 0 && (
@@ -176,7 +176,7 @@ export default function AIChatPage() {
             </div>
             <div style={{ textAlign: "center" }}>
               <Text strong style={{ fontSize: 16, display: "block" }}>สวัสดี! ผม CES AI Assistant</Text>
-              <Text type="secondary" style={{ fontSize: 13 }}>ถามได้เลยครับ เกี่ยวกับ Deal, Pipeline, Stage, Sales ในระบบ</Text>
+              <Text type="secondary" style={{ fontSize: 13 }}>ถามได้เลยครับ เกี่ยวกับ Deal, Pipeline, Stage ภายใน CES และ Project Status</Text>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", maxWidth: 600 }}>
               {SUGGESTED_QUESTIONS.map((q) => (
