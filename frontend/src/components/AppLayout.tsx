@@ -39,6 +39,7 @@ const allNavItems: NavItem[] = [
   {
     key: "admin", label: "Admin", icon: "admin_panel_settings",
     children: [
+      { key: "admin-ai-chat", label: "AI Assistant", icon: "smart_toy", path: "/ai-chat" },
       { key: "users", label: "Users", icon: "manage_accounts", path: "/users" },
       { key: "admin-user-sessions", label: "User Sessions", icon: "history", path: "/admin/user-sessions" },
       { key: "admin-role-permissions", label: "Role Permissions", icon: "admin_panel_settings", path: "/admin/role-permissions" },
@@ -49,7 +50,6 @@ const allNavItems: NavItem[] = [
       { key: "admin-monitor-kuma", label: "Uptime Kuma", icon: "monitor_heart", path: "http://187.77.156.215:3001" },
     ],
   },
-  { key: "ai-chat", label: "AI Assistant", icon: "smart_toy", path: "/ai-chat" },
 ];
 
 const saleUploadItems: NavItem[] = [
@@ -70,13 +70,11 @@ function getNavItems(role?: string, perms?: Record<string, boolean>): NavItem[] 
     if ("children" in item && item.key === "admin" && !canAccessAdminMenu) {
       return null;
     }
-    if (!("children" in item) && item.key === "ai-chat" && !canUseAiChat) {
-      return null;
-    }
     if (!("children" in item)) return item;
     const children = item.children.filter(
       (c) =>
         (!isSales || !["boqs", "v2-pricing", "quotations"].includes(c.key)) &&
+        (c.key !== "admin-ai-chat" || canUseAiChat) &&
         (c.key !== "deals-review-report" || canViewDealReview) &&
         (c.key !== "admin-role-permissions" || canConfigureRoles) &&
         (c.key !== "admin-user-sessions" || canConfigureRoles) &&
