@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Table, Tag, Tooltip, Button, Typography, Spin, Timeline, Badge, Select, Input, DatePicker, Space,
+  Table, Tag, Tooltip, Button, Typography, Spin, Badge, Select, Input, DatePicker, Space,
 } from "antd";
 import { ReloadOutlined, UserOutlined, DownloadOutlined } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
@@ -196,16 +196,47 @@ export default function UserSessionsPage() {
           <Text type="secondary" style={{ fontSize: 12 }}>ไม่มี activity ที่บันทึกไว้</Text>
         ) : (
           <>
-            <Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 8 }}>
+            <Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 12 }}>
               แสดง 30 รายการล่าสุด จากทั้งหมด {data.total} รายการ
             </Text>
-            <Timeline
-              style={{ maxHeight: 320, overflowY: "auto", paddingRight: 8 }}
-              items={data.activities.map((a) => ({
-                key: a.id,
-                color: ACTION_COLORS[a.action] ?? "gray",
-                children: (
-                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <div style={{ maxHeight: 320, overflowY: "auto", paddingRight: 8, paddingTop: 4 }}>
+              {data.activities.map((a, index) => (
+                <div
+                  key={a.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "16px 1fr",
+                    columnGap: 14,
+                    alignItems: "flex-start",
+                    minHeight: 38,
+                  }}
+                >
+                  <div style={{ position: "relative", height: "100%" }}>
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 7,
+                        top: 0,
+                        bottom: index === data.activities.length - 1 ? 10 : -10,
+                        width: 2,
+                        background: "#e5e7eb",
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 2,
+                        top: 8,
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        border: "2px solid #fff",
+                        background: "#d1d5db",
+                        boxShadow: "0 0 0 1px #d1d5db",
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap", paddingBottom: 14 }}>
                     <Tag
                       color={ACTION_COLORS[a.action] ?? "default"}
                       style={{ fontSize: 11, lineHeight: "18px", margin: 0 }}
@@ -222,9 +253,9 @@ export default function UserSessionsPage() {
                       <Text type="secondary" style={{ fontSize: 11 }}>· {a.ip_address}</Text>
                     )}
                   </div>
-                ),
-              }))}
-            />
+                </div>
+              ))}
+            </div>
           </>
         )}
       </div>
