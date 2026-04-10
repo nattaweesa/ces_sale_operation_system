@@ -18,6 +18,7 @@ if [[ -z "$TARGET_TAG" ]]; then
 fi
 
 mkdir -p "$APP_DIR"
+git config --global --add safe.directory "$APP_DIR" >/dev/null 2>&1 || true
 cd "$APP_DIR"
 
 if [[ ! -d .git ]]; then
