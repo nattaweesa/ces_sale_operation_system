@@ -17,29 +17,33 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables (Alembic handles migrations in production; this covers dev fast-start)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
+
+    # Dev convenience only: in production, schema must be managed via Alembic.
+    if not is_production:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
     # Create storage directories
     for sub in ("attachments", "quotations", "material_approvals", "uploaded_quotations", "master_data_ingestion"):
         os.makedirs(os.path.join(settings.storage_path, sub), exist_ok=True)
 
-    # Seed default admin user if none exists
-    async with AsyncSessionLocal() as db:
-        from app.models.user import User
-        result = await db.execute(select(User).where(User.role == "admin").limit(1))
-        if not result.scalar_one_or_none():
-            admin = User(
-                username="admin",
-                full_name="System Admin",
-                email="admin@ces.local",
-                role="admin",
-                password_hash=hash_password("admin1234"),
-            )
-            db.add(admin)
-            await db.commit()
-            print("✅ Default admin created: username=admin password=admin1234")
+    # Seed default admin user only in non-production environments.
+    if not is_production:
+        async with AsyncSessionLocal() as db:
+            from app.models.user import User
+            result = await db.execute(select(User).where(User.role == "admin").limit(1))
+            if not result.scalar_one_or_none():
+                admin = User(
+                    username="admin",
+                    full_name="System Admin",
+                    email="admin@ces.local",
+                    role="admin",
+                    password_hash=hash_password("admin1234"),
+                )
+                db.add(admin)
+                await db.commit()
+                print("✅ Default admin created: username=admin password=admin1234")
 
     yield
 

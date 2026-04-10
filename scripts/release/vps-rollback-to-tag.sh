@@ -74,7 +74,7 @@ if ! docker exec "$BACKEND_CID" alembic current 2>&1 | grep -qE '[a-f0-9]{8,}|\(
   echo "INFO: alembic_version empty — stamping head for pre-existing schema"
   docker exec "$BACKEND_CID" alembic stamp head
 fi
-docker exec "$BACKEND_CID" alembic upgrade head
+docker exec "$BACKEND_CID" alembic upgrade heads
 curl -fsS http://localhost:8000/health >/dev/null
 
 echo "ROLLBACK_OK tag=$TARGET_TAG commit=$TARGET_COMMIT"
