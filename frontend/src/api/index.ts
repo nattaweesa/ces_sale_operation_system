@@ -14,8 +14,35 @@ export interface AIChatResponse {
   response: string;
 }
 
+export interface AISettingsOut {
+  provider: string;
+  model: string;
+  has_api_key: boolean;
+  api_key_masked?: string | null;
+  updated_at?: string | null;
+  updated_by_name?: string | null;
+}
+
+export interface AISettingsUpdateIn {
+  model: string;
+  api_key?: string;
+  clear_api_key?: boolean;
+}
+
+export interface AISettingsTestOut {
+  ok: boolean;
+  detail: string;
+  model: string;
+}
+
 export const aiChatApi = {
   query: (data: AIChatRequest) => api.post<AIChatResponse>("/ai-chat/query", data),
+};
+
+export const aiSettingsApi = {
+  get: () => api.get<AISettingsOut>("/admin/ai-settings"),
+  update: (data: AISettingsUpdateIn) => api.put<AISettingsOut>("/admin/ai-settings", data),
+  test: () => api.post<AISettingsTestOut>("/admin/ai-settings/test"),
 };
 
 export interface LoginResponse {

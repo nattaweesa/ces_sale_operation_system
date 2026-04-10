@@ -29,6 +29,7 @@ import PricingSessionV2Page from "./pages/PricingSessionV2Page";
 import QuotationV2Page from "./pages/QuotationV2Page";
 import V2OverviewPage from "./pages/V2OverviewPage";
 import AIChatPage from "./pages/AIChatPage";
+import AdminAISettingsPage from "./pages/AdminAISettingsPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -190,10 +191,10 @@ export default function App() {
             <Route path="quotations/:id/material-approval" element={<MaterialApprovalPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="admin/role-permissions" element={<RequireRoles roles={["admin"]}><RolePermissionsPage /></RequireRoles>} />
-                          <Route path="admin/user-sessions" element={<RequireRoles roles={["admin"]}><UserSessionsPage /></RequireRoles>} />
-              <Route path="admin/user-sessions" element={<RequireRoles roles={["admin"]}><UserSessionsPage /></RequireRoles>} />
-              <Route path="admin/quotation-master-data" element={<RequireRoles roles={["admin", "manager"]}><QuotationMasterDataPage /></RequireRoles>} />
-              <Route path="ai-chat" element={<RequireRoles roles={["admin", "manager"]}><AIChatPage /></RequireRoles>} />
+            <Route path="admin/user-sessions" element={<RequireRoles roles={["admin"]}><UserSessionsPage /></RequireRoles>} />
+            <Route path="admin/quotation-master-data" element={<RequireRoles roles={["admin", "manager"]}><QuotationMasterDataPage /></RequireRoles>} />
+            <Route path="admin/ai-settings" element={<RequireRoles roles={["admin"]}><AdminAISettingsPage /></RequireRoles>} />
+            <Route path="ai-chat" element={<RequireRoles roles={["admin", "manager"]}><AIChatPage /></RequireRoles>} />
           </Route>
         </Routes>
       </BrowserRouter>

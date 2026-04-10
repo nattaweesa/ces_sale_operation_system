@@ -11,8 +11,8 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.models.deal import Deal
 from app.models.user import User
+from app.services.ai_settings import resolve_minimax_runtime_config
 from app.services.auth import require_roles
-from app.config import get_settings
 
 router = APIRouter(prefix="/ai-chat", tags=["ai-chat"])
 
@@ -176,11 +176,9 @@ def _fmt(value) -> str:
 async def ai_chat_query(
     request: AIChatRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_roles("admin", "manager")),
+    _: User = Depends(require_roles("admin", "manager")),
 ):
-    settings = get_settings()
-    api_key = getattr(settings, "minimax_api_key", None)
-    model = getattr(settings, "minimax_model", "MiniMax-M2.7-highspeed")
+    api_key, model = await resolve_minimax_runtime_config(db)
 
     if not api_key:
         raise HTTPException(status_code=503, detail="AI service not configured (MINIMAX_API_KEY missing)")

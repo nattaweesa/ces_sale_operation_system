@@ -43,6 +43,7 @@ const allNavItems: NavItem[] = [
       { key: "admin-user-sessions", label: "User Sessions", icon: "history", path: "/admin/user-sessions" },
       { key: "admin-role-permissions", label: "Role Permissions", icon: "admin_panel_settings", path: "/admin/role-permissions" },
       { key: "admin-quotation-master-data", label: "Quotation Master Data", icon: "dataset_linked", path: "/admin/quotation-master-data" },
+      { key: "admin-ai-settings", label: "AI Settings", icon: "settings_suggest", path: "/admin/ai-settings" },
       { key: "admin-monitor-grafana", label: "Grafana", icon: "monitoring", path: "http://187.77.156.215:3000" },
       { key: "admin-monitor-prometheus", label: "Prometheus", icon: "query_stats", path: "http://187.77.156.215:9090" },
       { key: "admin-monitor-kuma", label: "Uptime Kuma", icon: "monitor_heart", path: "http://187.77.156.215:3001" },
@@ -79,6 +80,7 @@ function getNavItems(role?: string, perms?: Record<string, boolean>): NavItem[] 
         (c.key !== "deals-review-report" || canViewDealReview) &&
         (c.key !== "admin-role-permissions" || canConfigureRoles) &&
         (c.key !== "admin-user-sessions" || canConfigureRoles) &&
+        (c.key !== "admin-ai-settings" || canConfigureRoles) &&
         (!["admin-monitor-grafana", "admin-monitor-prometheus", "admin-monitor-kuma"].includes(c.key) || canConfigureRoles)
     );
     if (!children.length) return null;
