@@ -7,6 +7,8 @@ type NavChild = { key: string; label: string; path: string; icon: string };
 type NavGroup = { key: string; label: string; icon: string; children: NavChild[] };
 type NavItem = { key: string; label: string; icon: string; path: string } | NavGroup;
 
+const isExternalPath = (path: string): boolean => /^https?:\/\//.test(path);
+
 const allNavItems: NavItem[] = [
   { key: "dashboard", label: "Dashboard", icon: "dashboard", path: "/deals-dashboard" },
   {
@@ -40,6 +42,9 @@ const allNavItems: NavItem[] = [
       { key: "users", label: "Users", icon: "manage_accounts", path: "/users" },
       { key: "admin-role-permissions", label: "Role Permissions", icon: "admin_panel_settings", path: "/admin/role-permissions" },
       { key: "admin-quotation-master-data", label: "Quotation Master Data", icon: "dataset_linked", path: "/admin/quotation-master-data" },
+      { key: "admin-monitor-grafana", label: "Grafana", icon: "monitoring", path: "http://187.77.156.215:3000" },
+      { key: "admin-monitor-prometheus", label: "Prometheus", icon: "query_stats", path: "http://187.77.156.215:9090" },
+      { key: "admin-monitor-kuma", label: "Uptime Kuma", icon: "monitor_heart", path: "http://187.77.156.215:3001" },
     ],
   },
 ];
@@ -66,7 +71,8 @@ function getNavItems(role?: string, perms?: Record<string, boolean>): NavItem[] 
       (c) =>
         (!isSales || !["boqs", "v2-pricing", "quotations"].includes(c.key)) &&
         (c.key !== "deals-review-report" || canViewDealReview) &&
-        (c.key !== "admin-role-permissions" || canConfigureRoles)
+        (c.key !== "admin-role-permissions" || canConfigureRoles) &&
+        (!["admin-monitor-grafana", "admin-monitor-prometheus", "admin-monitor-kuma"].includes(c.key) || canConfigureRoles)
     );
     if (!children.length) return null;
     return { ...item, children };
@@ -163,7 +169,13 @@ export default function AppLayout() {
   const defaultOpen = getOpenGroup(location.pathname, navItems);
   const [openGroup, setOpenGroup] = useState<string>(defaultOpen);
 
-  const handleNav = (path: string) => navigate(path);
+  const handleNav = (path: string) => {
+    if (isExternalPath(path)) {
+      window.open(path, "_blank", "noopener,noreferrer");
+      return;
+    }
+    navigate(path);
+  };
 
   const toggleGroup = (key: string) => {
     setOpenGroup((prev) => (prev === key ? "" : key));
