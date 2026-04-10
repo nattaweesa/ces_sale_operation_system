@@ -1,5 +1,23 @@
 import api from "./client";
 
+export interface AIChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AIChatRequest {
+  message: string;
+  history?: AIChatMessage[];
+}
+
+export interface AIChatResponse {
+  response: string;
+}
+
+export const aiChatApi = {
+  query: (data: AIChatRequest) => api.post<AIChatResponse>("/ai-chat/query", data),
+};
+
 export interface LoginResponse {
   access_token: string;
   user_id: number;

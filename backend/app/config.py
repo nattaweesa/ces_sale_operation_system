@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     company_address: str = ""
     company_phone: str = ""
     company_email: str = ""
+    minimax_api_key: str = ""
+    minimax_model: str = "MiniMax-M2.7-highspeed"
 
 
 @lru_cache

@@ -48,6 +48,7 @@ const allNavItems: NavItem[] = [
       { key: "admin-monitor-kuma", label: "Uptime Kuma", icon: "monitor_heart", path: "http://187.77.156.215:3001" },
     ],
   },
+  { key: "ai-chat", label: "AI Assistant", icon: "smart_toy", path: "/ai-chat" },
 ];
 
 const saleUploadItems: NavItem[] = [
@@ -60,11 +61,15 @@ function getNavItems(role?: string, perms?: Record<string, boolean>): NavItem[] 
   const canViewDealReview = isSales || (perms?.["deals.view_all"] ?? ["admin", "manager", "sales_admin"].includes(role || ""));
   const canAccessAdminMenu = perms?.["menu.admin_access"] ?? ["admin", "manager"].includes(role || "");
   const canConfigureRoles = role === "admin";
+  const canUseAiChat = ["admin", "manager"].includes(role || "");
   return allNavItems.map((item) => {
     if ("children" in item && isSales && ["products", "crm"].includes(item.key)) {
       return null;
     }
     if ("children" in item && item.key === "admin" && !canAccessAdminMenu) {
+      return null;
+    }
+    if (!("children" in item) && item.key === "ai-chat" && !canUseAiChat) {
       return null;
     }
     if (!("children" in item)) return item;
