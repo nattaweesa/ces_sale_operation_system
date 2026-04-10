@@ -35,6 +35,37 @@ class AIChatResponse(BaseModel):
     response: str
 
 
+def _extract_minimax_text(data: dict) -> str:
+    """Extract assistant text from Minimax response and raise friendly errors."""
+    base_resp = data.get("base_resp") if isinstance(data, dict) else None
+    if isinstance(base_resp, dict):
+        code = base_resp.get("status_code")
+        msg = str(base_resp.get("status_msg") or "")
+        if code not in (0, None):
+            if "insufficient balance" in msg.lower():
+                raise HTTPException(
+                    status_code=502,
+                    detail="Minimax balance ไม่พอ กรุณาเติมเครดิตก่อนใช้งาน AI Chat",
+                )
+            raise HTTPException(status_code=502, detail=f"Minimax API error: {msg or f'code {code}'}")
+
+    choices = data.get("choices") if isinstance(data, dict) else None
+    if isinstance(choices, list) and choices:
+        msg = choices[0].get("message") if isinstance(choices[0], dict) else None
+        if isinstance(msg, dict):
+            content = msg.get("content")
+            if isinstance(content, str) and content.strip():
+                return content
+
+    # Some responses may use a top-level reply/text field.
+    for key in ("reply", "text", "output_text"):
+        val = data.get(key) if isinstance(data, dict) else None
+        if isinstance(val, str) and val.strip():
+            return val
+
+    raise HTTPException(status_code=502, detail="Minimax response ไม่มีข้อความที่อ่านได้")
+
+
 # ── DB context helpers ────────────────────────────────────────────────────────
 
 async def _fetch_system_context(db: AsyncSession) -> str:
@@ -202,10 +233,6 @@ async def ai_chat_query(
     except httpx.RequestError as exc:
         raise HTTPException(status_code=502, detail=f"Minimax API unreachable: {exc}")
 
-    # Extract response text
-    try:
-        ai_text = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError):
-        raise HTTPException(status_code=502, detail=f"Unexpected Minimax response: {str(data)[:200]}")
+    ai_text = _extract_minimax_text(data)
 
     return AIChatResponse(response=ai_text)
