@@ -13,6 +13,7 @@ from app.schemas.role_permission import (
     RolePermissionUpdateRequest,
 )
 from app.services.auth import get_current_user, require_roles
+from app.services.activity import log_activity
 from app.services.rbac import (
     PERMISSION_CATALOG,
     available_roles,
@@ -86,6 +87,13 @@ async def update_role_permissions(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    await log_activity(
+        db,
+        current_user.id,
+        "role_permissions.update",
+        resource_type="role",
+        resource_label=role,
+    )
     await db.commit()
     effective = await get_effective_permissions(db, role)
     return RolePermissionResponse(

@@ -52,8 +52,26 @@ export const quotationUploadsApi = {
 
 export const adminActivityApi = {
   userSessions: () => api.get("/admin/user-sessions"),
-  getUserActivity: (userId: number, limit = 50, offset = 0) =>
-    api.get(`/admin/user-sessions/${userId}/activity`, { params: { limit, offset } }),
+  getUserActivity: (
+    userId: number,
+    params?: {
+      limit?: number;
+      offset?: number;
+      action?: string;
+      date_from?: string;
+      date_to?: string;
+      q?: string;
+    },
+  ) => api.get(`/admin/user-sessions/${userId}/activity`, { params }),
+  exportUserActivityCsv: (
+    userId: number,
+    params?: {
+      action?: string;
+      date_from?: string;
+      date_to?: string;
+      q?: string;
+    },
+  ) => api.get(`/admin/user-sessions/${userId}/activity/export.csv`, { params, responseType: "blob" }),
 };
 
 export const customersApi = {

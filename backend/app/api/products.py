@@ -16,6 +16,7 @@ from app.models.category import Category
 from app.models.user import User
 from app.schemas.product import ProductCreate, ProductUpdate, ProductOut, ProductAttachmentOut, ProductAttachmentUpdate
 from app.services.auth import get_current_user
+from app.services.activity import log_activity
 from app.services.rbac import can_user
 from app.config import get_settings
 
@@ -105,6 +106,15 @@ async def create_product(payload: ProductCreate, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     product = Product(**payload.model_dump())
     db.add(product)
+    await db.flush()
+    await log_activity(
+        db,
+        current_user.id,
+        "product.create",
+        resource_type="product",
+        resource_id=product.id,
+        resource_label=product.item_code,
+    )
     await db.commit()
     stmt = select(Product).options(selectinload(Product.attachments), selectinload(Product.brand), selectinload(Product.category)).where(Product.id == product.id)
     result = await db.execute(stmt)
@@ -133,6 +143,14 @@ async def update_product(product_id: int, payload: ProductUpdate, db: AsyncSessi
 
     for field, val in payload.model_dump(exclude_none=True).items():
         setattr(product, field, val)
+    await log_activity(
+        db,
+        current_user.id,
+        "product.update",
+        resource_type="product",
+        resource_id=product.id,
+        resource_label=product.item_code,
+    )
     await db.commit()
     await db.refresh(product)
     stmt2 = select(Product).options(selectinload(Product.attachments), selectinload(Product.brand), selectinload(Product.category)).where(Product.id == product_id)
@@ -149,6 +167,14 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db), cu
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     product.is_active = False
+    await log_activity(
+        db,
+        current_user.id,
+        "product.delete",
+        resource_type="product",
+        resource_id=product.id,
+        resource_label=product.item_code,
+    )
     await db.commit()
 
 

@@ -1,8 +1,11 @@
 from __future__ import annotations
 from typing import Optional
 from datetime import datetime, timedelta, timezone
+import csv
+import io
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -130,6 +133,10 @@ async def get_user_activity(
     user_id: int,
     limit: int = 50,
     offset: int = 0,
+    action: Optional[str] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    q: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles("admin")),
 ):
@@ -139,18 +146,33 @@ async def get_user_activity(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    filters = [UserActivityLog.user_id == user_id]
+    if action:
+        filters.append(UserActivityLog.action == action)
+    if date_from:
+        filters.append(UserActivityLog.created_at >= date_from)
+    if date_to:
+        filters.append(UserActivityLog.created_at <= date_to)
+    if q:
+        like_term = f"%{q}%"
+        filters.append(
+            (UserActivityLog.resource_label.ilike(like_term))
+            | (UserActivityLog.action.ilike(like_term))
+            | (UserActivityLog.ip_address.ilike(like_term))
+        )
+
     total: int = (
         await db.execute(
             select(func.count())
             .select_from(UserActivityLog)
-            .where(UserActivityLog.user_id == user_id)
+            .where(*filters)
         )
     ).scalar() or 0
 
     acts = (
         await db.execute(
             select(UserActivityLog)
-            .where(UserActivityLog.user_id == user_id)
+            .where(*filters)
             .order_by(UserActivityLog.created_at.desc())
             .limit(limit)
             .offset(offset)
@@ -163,4 +185,65 @@ async def get_user_activity(
         full_name=user.full_name,
         total=total,
         activities=[ActivityLogOut.model_validate(a) for a in acts],
+    )
+
+
+@router.get("/user-sessions/{user_id}/activity/export.csv")
+async def export_user_activity_csv(
+    user_id: int,
+    action: Optional[str] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    q: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles("admin")),
+):
+    """Export filtered activity logs for a user as CSV."""
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    filters = [UserActivityLog.user_id == user_id]
+    if action:
+        filters.append(UserActivityLog.action == action)
+    if date_from:
+        filters.append(UserActivityLog.created_at >= date_from)
+    if date_to:
+        filters.append(UserActivityLog.created_at <= date_to)
+    if q:
+        like_term = f"%{q}%"
+        filters.append(
+            (UserActivityLog.resource_label.ilike(like_term))
+            | (UserActivityLog.action.ilike(like_term))
+            | (UserActivityLog.ip_address.ilike(like_term))
+        )
+
+    activities = (
+        await db.execute(
+            select(UserActivityLog)
+            .where(*filters)
+            .order_by(UserActivityLog.created_at.desc())
+        )
+    ).scalars().all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "created_at", "action", "resource_type", "resource_id", "resource_label", "ip_address"])
+    for row in activities:
+        writer.writerow([
+            row.id,
+            row.created_at.isoformat() if row.created_at else "",
+            row.action,
+            row.resource_type or "",
+            row.resource_id or "",
+            row.resource_label or "",
+            row.ip_address or "",
+        ])
+
+    filename = f"user_activity_{user.username}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )

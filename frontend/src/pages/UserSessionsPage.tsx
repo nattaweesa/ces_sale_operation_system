@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import {
-  Table, Tag, Tooltip, Button, Typography, Spin, Timeline, Badge,
+  Table, Tag, Tooltip, Button, Typography, Spin, Timeline, Badge, Select, Input, DatePicker, Space,
 } from "antd";
-import { ReloadOutlined, UserOutlined } from "@ant-design/icons";
+import { ReloadOutlined, UserOutlined, DownloadOutlined } from "@ant-design/icons";
+import dayjs, { Dayjs } from "dayjs";
 import { adminActivityApi } from "../api";
 
 const { Text } = Typography;
@@ -58,6 +59,9 @@ const ACTION_LABELS: Record<string, string> = {
   "product.create": "Product Created",
   "product.update": "Product Updated",
   "product.delete": "Product Deleted",
+  "user.create": "User Created",
+  "user.update": "User Updated",
+  "role_permissions.update": "Role Permission Updated",
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -70,6 +74,9 @@ const ACTION_COLORS: Record<string, string> = {
   "product.create": "purple",
   "product.update": "magenta",
   "product.delete": "red",
+  "user.create": "orange",
+  "user.update": "volcano",
+  "role_permissions.update": "geekblue",
 };
 
 function timeAgo(dateStr: string): string {
@@ -96,8 +103,36 @@ function initials(name: string): string {
 export default function UserSessionsPage() {
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activityData, setActivityData] = useState<Record<number, UserActivityPage>>({});
-  const [activityLoading, setActivityLoading] = useState<Record<number, boolean>>({});
+  const [activityData, setActivityData] = useState<Record<string, UserActivityPage>>({});
+  const [activityLoading, setActivityLoading] = useState<Record<string, boolean>>({});
+  const [actionFilter, setActionFilter] = useState<string | undefined>(undefined);
+  const [qFilter, setQFilter] = useState("");
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
+
+  const getFilterKey = (userId: number) => {
+    const from = dateRange[0]?.toISOString() || "";
+    const to = dateRange[1]?.toISOString() || "";
+    return `${userId}|${actionFilter || ""}|${qFilter}|${from}|${to}`;
+  };
+
+  const currentQueryParams = () => {
+    const params: {
+      limit: number;
+      offset: number;
+      action?: string;
+      date_from?: string;
+      date_to?: string;
+      q?: string;
+    } = {
+      limit: 30,
+      offset: 0,
+    };
+    if (actionFilter) params.action = actionFilter;
+    if (qFilter.trim()) params.q = qFilter.trim();
+    if (dateRange[0]) params.date_from = dateRange[0].startOf("day").toISOString();
+    if (dateRange[1]) params.date_to = dateRange[1].endOf("day").toISOString();
+    return params;
+  };
 
   const load = async () => {
     setLoading(true);
@@ -113,15 +148,29 @@ export default function UserSessionsPage() {
 
   useEffect(() => { load(); }, []);
 
-  const loadUserActivity = async (userId: number) => {
-    if (activityData[userId]) return;
-    setActivityLoading((prev) => ({ ...prev, [userId]: true }));
+  const loadUserActivity = async (userId: number, force = false) => {
+    const key = getFilterKey(userId);
+    if (!force && activityData[key]) return;
+    setActivityLoading((prev) => ({ ...prev, [key]: true }));
     try {
-      const r = await adminActivityApi.getUserActivity(userId, 30);
-      setActivityData((prev) => ({ ...prev, [userId]: r.data }));
+      const r = await adminActivityApi.getUserActivity(userId, currentQueryParams());
+      setActivityData((prev) => ({ ...prev, [key]: r.data }));
     } finally {
-      setActivityLoading((prev) => ({ ...prev, [userId]: false }));
+      setActivityLoading((prev) => ({ ...prev, [key]: false }));
     }
+  };
+
+  const exportUserActivityCsv = async (userId: number) => {
+    const r = await adminActivityApi.exportUserActivityCsv(userId, currentQueryParams());
+    const blob = new Blob([r.data], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `user_activity_${userId}_${dayjs().format("YYYYMMDD_HHmmss")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   // ── Stats
@@ -130,11 +179,17 @@ export default function UserSessionsPage() {
 
   // ── Expanded row: activity timeline
   const expandedRowRender = (record: UserSession) => {
-    const data = activityData[record.id];
-    const isLoading = activityLoading[record.id];
+    const key = getFilterKey(record.id);
+    const data = activityData[key];
+    const isLoading = activityLoading[key];
 
     return (
       <div style={{ padding: "8px 32px 16px" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+          <Button size="small" icon={<DownloadOutlined />} onClick={() => exportUserActivityCsv(record.id)}>
+            Export CSV
+          </Button>
+        </div>
         {isLoading ? (
           <Spin size="small" />
         ) : !data || data.activities.length === 0 ? (
@@ -301,6 +356,37 @@ export default function UserSessionsPage() {
         ))}
       </div>
 
+      <div style={{ marginBottom: 14, background: "#fff", border: "1px solid #f0f0f0", borderRadius: 8, padding: 12 }}>
+        <Space wrap>
+          <Select
+            allowClear
+            placeholder="Filter action"
+            style={{ width: 190 }}
+            value={actionFilter}
+            onChange={(v) => setActionFilter(v)}
+            options={Object.keys(ACTION_LABELS).map((k) => ({ value: k, label: ACTION_LABELS[k] }))}
+          />
+          <DatePicker.RangePicker
+            value={dateRange}
+            onChange={(v) => setDateRange((v || [null, null]) as [Dayjs | null, Dayjs | null])}
+          />
+          <Input
+            placeholder="Search label / IP / action"
+            style={{ width: 260 }}
+            value={qFilter}
+            onChange={(e) => setQFilter(e.target.value)}
+            allowClear
+          />
+          <Button
+            onClick={() => {
+              setActivityData({});
+            }}
+          >
+            Apply Filters
+          </Button>
+        </Space>
+      </div>
+
       {/* Table */}
       <Table
         dataSource={sessions}
@@ -311,7 +397,7 @@ export default function UserSessionsPage() {
         expandable={{
           expandedRowRender,
           onExpand: (expanded, record) => {
-            if (expanded) loadUserActivity(record.id);
+            if (expanded) loadUserActivity(record.id, true);
           },
           rowExpandable: () => true,
         }}

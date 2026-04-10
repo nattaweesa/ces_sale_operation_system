@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate, UserOut, UserSelfUpdate, UserChangePassword
 from app.services.auth import hash_password, verify_password, validate_password_strength, get_current_user, require_roles
+from app.services.activity import log_activity
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -24,7 +25,7 @@ async def list_users(
 async def create_user(
     payload: UserCreate,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_roles("admin")),
+    current_user: User = Depends(require_roles("admin")),
 ):
     existing = await db.execute(select(User).where(User.username == payload.username))
     if existing.scalar_one_or_none():
@@ -42,6 +43,15 @@ async def create_user(
         password_hash=hash_password(payload.password),
     )
     db.add(user)
+    await db.flush()
+    await log_activity(
+        db,
+        current_user.id,
+        "user.create",
+        resource_type="user",
+        resource_id=user.id,
+        resource_label=user.username,
+    )
     await db.commit()
     await db.refresh(user)
     return user
@@ -116,7 +126,7 @@ async def update_user(
     user_id: int,
     payload: UserUpdate,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_roles("admin")),
+    current_user: User = Depends(require_roles("admin")),
 ):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -131,6 +141,14 @@ async def update_user(
             raise HTTPException(status_code=400, detail=password_error)
         user.password_hash = hash_password(payload.password)
 
+    await log_activity(
+        db,
+        current_user.id,
+        "user.update",
+        resource_type="user",
+        resource_id=user.id,
+        resource_label=user.username,
+    )
     await db.commit()
     await db.refresh(user)
     return user
