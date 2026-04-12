@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.database import engine, Base, AsyncSessionLocal
 from app.models import *  # noqa – ensures all models are registered
-from app.api import auth, users, brands, categories, products, customers, projects, boqs, quotations, material_approval, deals, sourcing, quotation_intake, master_data_ingestion, boq_pricing_v2, role_permissions, quotation_master_data, quotation_uploads, deal_master_data
+from app.api import auth, users, brands, categories, products, customers, projects, boqs, quotations, material_approval, deals, sourcing, quotation_intake, master_data_ingestion, boq_pricing_v2, role_permissions, quotation_master_data, quotation_uploads, deal_master_data, departments
 from app.api import admin_activity
 from app.api import ai_chat
 from app.api import ai_settings
@@ -84,6 +84,7 @@ app.include_router(boq_pricing_v2.router)
 app.include_router(role_permissions.router)
 app.include_router(quotation_uploads.router)
 app.include_router(deal_master_data.router)
+app.include_router(departments.router)
 app.include_router(admin_activity.router)
 app.include_router(ai_chat.router)
 app.include_router(ai_settings.router)

@@ -43,6 +43,7 @@ const allNavItems: NavItem[] = [
     children: [
       { key: "admin-ai-chat", label: "AI Assistant", icon: "smart_toy", path: "/ai-chat" },
       { key: "users", label: "Users", icon: "manage_accounts", path: "/users" },
+      { key: "departments", label: "Departments", icon: "domain", path: "/departments" },
       { key: "admin-user-sessions", label: "User Sessions", icon: "history", path: "/admin/user-sessions" },
       { key: "admin-role-permissions", label: "Role Permissions", icon: "admin_panel_settings", path: "/admin/role-permissions" },
       { key: "admin-quotation-master-data", label: "Quotation Master Data", icon: "dataset_linked", path: "/admin/quotation-master-data" },
@@ -78,6 +79,7 @@ function getNavItems(role?: string, perms?: Record<string, boolean>): NavItem[] 
       (c) =>
         (!isSales || !["boqs", "v2-pricing", "quotations"].includes(c.key)) &&
         (c.key !== "admin-ai-chat" || canUseAiChat) &&
+        (c.key !== "departments" || canConfigureRoles) &&
         (c.key !== "deals-review-report" || canViewDealReview) &&
         (c.key !== "admin-role-permissions" || canConfigureRoles) &&
         (c.key !== "admin-user-sessions" || canConfigureRoles) &&

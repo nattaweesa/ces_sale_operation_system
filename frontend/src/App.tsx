@@ -15,6 +15,7 @@ import BOQsPage from "./pages/BOQsPage";
 import BOQPage from "./pages/BOQPage";
 import MaterialApprovalPage from "./pages/MaterialApprovalPage";
 import UsersPage from "./pages/UsersPage";
+import DepartmentsPage from "./pages/DepartmentsPage";
 import DealsPage from "./pages/DealsPage";
 import DealsDashboardPage from "./pages/DealsDashboardPage";
 import DealsReviewReportPage from "./pages/DealsReviewReportPage";
@@ -201,6 +202,7 @@ export default function App() {
             <Route path="v2/quotations/:id" element={<QuotationV2Page />} />
             <Route path="quotations/:id/material-approval" element={<MaterialApprovalPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="departments" element={<RequireRoles roles={["admin"]}><DepartmentsPage /></RequireRoles>} />
             <Route path="admin/role-permissions" element={<RequireRoles roles={["admin"]}><RolePermissionsPage /></RequireRoles>} />
             <Route path="admin/user-sessions" element={<RequireRoles roles={["admin"]}><UserSessionsPage /></RequireRoles>} />
             <Route path="admin/quotation-master-data" element={<RequireRoles roles={["admin", "manager"]}><QuotationMasterDataPage /></RequireRoles>} />

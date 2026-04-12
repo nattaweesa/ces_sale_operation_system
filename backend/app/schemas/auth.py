@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -14,5 +15,5 @@ class TokenResponse(BaseModel):
     username: str
     full_name: str
     role: str
-    active_department_id: int | None = None
+    active_department_id: Optional[int] = None
     department_ids: list[int] = Field(default_factory=list)
