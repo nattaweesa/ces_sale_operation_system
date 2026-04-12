@@ -85,6 +85,9 @@ export default function DealsDashboardPage() {
   const wonDeals = data?.won_deals || 0;
   const openDeals = data?.open_deals || 0;
   const funnel: { stage: string; count: number; amount: number }[] = data?.funnel || [];
+  const wonAmount = funnel
+    .filter((row) => String(row.stage || "").toLowerCase() === "won")
+    .reduce((sum, row) => sum + Number(row.amount || 0), 0);
   const maxFunnelCount = Math.max(...funnel.map((f) => f.count), 1);
   const winRate = totalDeals > 0 ? Math.round((wonDeals / totalDeals) * 100) : 0;
 
@@ -101,6 +104,7 @@ export default function DealsDashboardPage() {
     {
       label: "Won Deals",
       value: wonDeals.toString(),
+      subValue: fmt(wonAmount),
       icon: "emoji_events",
       badge: { text: "Closed Won", color: "emerald" },
       barColor: "bg-[#6bffc1]",
@@ -207,6 +211,9 @@ export default function DealsDashboardPage() {
             </div>
             <p className="text-sm text-[#97a6c9] font-medium">{card.label}</p>
             <h3 className="text-2xl font-extrabold text-[#e5ebff] mt-1 font-headline">{loading ? "-" : card.value}</h3>
+            {card.subValue && (
+              <p className="text-xs font-semibold text-[#9fb0d2] mt-1">{loading ? "-" : card.subValue}</p>
+            )}
             <div className="mt-4 h-1 w-full bg-[#233861] rounded-full overflow-hidden">
               <div className={`h-full ${card.barColor} transition-all duration-500`} style={{ width: loading ? "0%" : card.barWidth }} />
             </div>
