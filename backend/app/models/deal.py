@@ -10,6 +10,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.boq import BOQ
     from app.models.customer import Customer
+    from app.models.department import Department
     from app.models.deal_master import DealCompany, DealCustomerType, DealProductSystemType
     from app.models.deal_forecast import DealForecastMonthly
     from app.models.project import Project
@@ -26,6 +27,7 @@ class Deal(Base):
     customer_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("customers.id"), nullable=True)
     project_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("projects.id"), nullable=True)
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    department_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("departments.id"), nullable=True)
 
     deal_cycle_stage: Mapped[str] = mapped_column(String(30), default="lead")
     status: Mapped[str] = mapped_column(String(20), default="design")  # design | bidding | award | on_hold | legacy values may still exist
@@ -54,6 +56,7 @@ class Deal(Base):
     customer: Mapped["Optional[Customer]"] = relationship("Customer", lazy="select")
     project: Mapped["Optional[Project]"] = relationship("Project", lazy="select")
     owner: Mapped["User"] = relationship("User", lazy="select")
+    department: Mapped["Optional[Department]"] = relationship("Department", lazy="select")
     product_system_types: Mapped[list["DealProductSystemType"]] = relationship(
         "DealProductSystemType",
         secondary="deal_product_system_links",
