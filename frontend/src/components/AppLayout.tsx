@@ -246,7 +246,7 @@ export default function AppLayout() {
             <span className="text-[#111a55] text-[11px] font-extrabold tracking-wide leading-none">CES</span>
           </div>
           <div>
-            <h1 className={`text-[11px] font-bold font-headline uppercase tracking-[0.16em] leading-tight ${shellTextClass}`}>Sale Operation System</h1>
+            <h1 className={`text-[11px] font-bold font-headline uppercase tracking-[0.16em] leading-tight ${shellTextClass}`}>CES Sale Operation System</h1>
           </div>
         </div>
 
@@ -344,7 +344,7 @@ export default function AppLayout() {
             <span className="material-symbols-outlined text-2xl">{sidebarOpen ? "close" : "menu"}</span>
           </button>
           <div>
-            <p className={`font-semibold font-headline text-sm uppercase tracking-[0.16em] leading-none ${shellTextClass}`}>Sale Operation System</p>
+            <p className={`font-semibold font-headline text-sm uppercase tracking-[0.16em] leading-none ${shellTextClass}`}>COMPLETE ELECTRICAL SOLUTIONS</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
