@@ -4,7 +4,7 @@ import {
 } from "antd";
 import { PlusOutlined, EditOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { projectsApi, customersApi } from "../api";
+import { departmentsApi, projectsApi, customersApi } from "../api";
 
 const STATUS_COLORS: Record<string, string> = {
   active: "blue", won: "green", lost: "red", cancelled: "default",
@@ -13,6 +13,8 @@ const STATUS_COLORS: Record<string, string> = {
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([]);
+  const [departmentIdsFilter, setDepartmentIdsFilter] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<any>(null);
@@ -22,16 +24,18 @@ export default function ProjectsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes] = await Promise.all([projectsApi.list(), customersApi.list()]);
+      const params = departmentIdsFilter.length ? { department_ids: departmentIdsFilter } : undefined;
+      const [pRes, cRes, dRes] = await Promise.all([projectsApi.list(params), customersApi.list(params), departmentsApi.list()]);
       setProjects(pRes.data);
       setCustomers(cRes.data);
+      setDepartments((dRes.data || []).filter((d: any) => d.is_active).map((d: any) => ({ id: d.id, name: d.name })));
     } catch {
       message.error("Unable to load projects data. Please try again.");
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [departmentIdsFilter]);
 
   const openCreate = () => { setEditRecord(null); form.resetFields(); setOpen(true); };
   const openEdit = (r: any) => { setEditRecord(r); form.setFieldsValue(r); setOpen(true); };
@@ -48,6 +52,20 @@ export default function ProjectsPage() {
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
         <Typography.Title level={4} style={{ margin: 0 }}>Projects</Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>New Project</Button>
+      </div>
+
+      <div style={{ marginBottom: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "#64748b" }}>Departments</span>
+        <Select
+          mode="multiple"
+          allowClear
+          maxTagCount="responsive"
+          placeholder="All departments"
+          style={{ minWidth: 280 }}
+          value={departmentIdsFilter}
+          options={departments.map((d) => ({ value: d.id, label: d.name }))}
+          onChange={(vals) => setDepartmentIdsFilter((vals || []).map((v) => Number(v)))}
+        />
       </div>
 
       <Table

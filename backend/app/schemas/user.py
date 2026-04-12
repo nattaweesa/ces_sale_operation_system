@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserBase(BaseModel):
@@ -13,6 +13,8 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    department_ids: list[int] = Field(default_factory=list)
+    active_department_id: Optional[int] = None
 
 
 class UserUpdate(BaseModel):
@@ -21,6 +23,8 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    department_ids: Optional[list[int]] = None
+    active_department_id: Optional[int] = None
 
 
 class UserSelfUpdate(BaseModel):
@@ -33,10 +37,21 @@ class UserChangePassword(BaseModel):
     new_password: str
 
 
+class UserDepartmentSwitch(BaseModel):
+    department_id: int
+
+
+class UserDepartmentOut(BaseModel):
+    id: int
+    name: str
+
+
 class UserOut(UserBase):
     id: int
     is_active: bool
     created_at: datetime
     last_login_at: Optional[datetime] = None
+    active_department_id: Optional[int] = None
+    departments: list[UserDepartmentOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}

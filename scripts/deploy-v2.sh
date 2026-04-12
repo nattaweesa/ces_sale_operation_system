@@ -12,6 +12,9 @@ VPS_PATH="/root/ces_sale_operation_v2"
 COMPOSE_FILE="docker-compose.v2.yml"
 ENV_FILE=".env.v2"
 BRANCH="main"
+BUNDLE_GATE="${BUNDLE_GATE:-1}"
+EXPORT_BUNDLE_ARTIFACT="${EXPORT_BUNDLE_ARTIFACT:-1}"
+MAX_CHUNK_KB="${MAX_CHUNK_KB:-1200}"
 
 if [[ "$MODE" != "build" && "$MODE" != "quick" ]]; then
   echo "Usage: $0 [build|quick]"
@@ -60,8 +63,32 @@ if [[ -z "\$BACKEND_CONTAINER" ]]; then
   exit 1
 fi
 
+FRONTEND_CONTAINER=\$(\$COMPOSE ps -q frontend)
+if [[ -z "\$FRONTEND_CONTAINER" ]]; then
+  echo "V2 frontend container is not running"
+  exit 1
+fi
+
 docker exec "\$BACKEND_CONTAINER" alembic upgrade head
 curl -fsS http://localhost:8100/health >/dev/null
 
+if [[ "$BUNDLE_GATE" == "1" ]]; then
+  echo "Running frontend bundle analysis and chunk gate (MAX_CHUNK_KB=$MAX_CHUNK_KB) ..."
+  docker exec "\$FRONTEND_CONTAINER" sh -lc "cd /app && npm run build:analyze && MAX_CHUNK_KB=$MAX_CHUNK_KB npm run check:bundle"
+fi
+
 echo "V2 deploy success: http://$VPS_HOST:5175"
 EOF
+
+if [[ "$EXPORT_BUNDLE_ARTIFACT" == "1" ]]; then
+  mkdir -p deploy_artifacts/bundle-reports
+  TS="$(date +%Y%m%d_%H%M%S)"
+  SHORT_SHA="$(git rev-parse --short HEAD)"
+  REMOTE_STATS_PATH="$VPS_PATH/frontend/dist/stats.html"
+  LOCAL_STATS_PATH="deploy_artifacts/bundle-reports/v2_stats_${TS}_${SHORT_SHA}.html"
+  if scp "$VPS_USER@$VPS_HOST:$REMOTE_STATS_PATH" "$LOCAL_STATS_PATH" >/dev/null 2>&1; then
+    echo "Bundle report saved: $LOCAL_STATS_PATH"
+  else
+    echo "Warning: could not export bundle report from $REMOTE_STATS_PATH"
+  fi
+fi

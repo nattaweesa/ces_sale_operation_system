@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Table, Button, Modal, Form, Select, Input, Tag, Space, Typography, message } from "antd";
 import { PlusOutlined, EyeOutlined } from "@ant-design/icons";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { quotationsApi, projectsApi, customersApi } from "../api";
+import { departmentsApi, quotationsApi, projectsApi } from "../api";
 import { formatTHB } from "../utils/currency";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -12,6 +12,9 @@ const STATUS_COLORS: Record<string, string> = {
 export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([]);
+  const [departmentIdsFilter, setDepartmentIdsFilter] = useState<number[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
@@ -23,17 +26,29 @@ export default function QuotationsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const params = projectIdFilter ? { project_id: parseInt(projectIdFilter) } : undefined;
-      const [qRes, pRes] = await Promise.all([quotationsApi.list(params), projectsApi.list()]);
+      const params: { project_id?: number; status?: string; department_ids?: number[] } = {};
+      if (projectIdFilter) params.project_id = parseInt(projectIdFilter);
+      if (statusFilter) params.status = statusFilter;
+      if (departmentIdsFilter.length) params.department_ids = departmentIdsFilter;
+
+      const listParams = Object.keys(params).length ? params : undefined;
+      const projectParams = departmentIdsFilter.length ? { department_ids: departmentIdsFilter } : undefined;
+
+      const [qRes, pRes, dRes] = await Promise.all([
+        quotationsApi.list(listParams),
+        projectsApi.list(projectParams),
+        departmentsApi.list(),
+      ]);
       setQuotations(qRes.data);
       setProjects(pRes.data);
+      setDepartments((dRes.data || []).filter((d: any) => d.is_active).map((d: any) => ({ id: Number(d.id), name: String(d.name) })));
     } catch {
       message.error("Unable to load quotations. Please refresh and try again.");
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => { load(); }, [projectIdFilter]);
+  useEffect(() => { load(); }, [projectIdFilter, departmentIdsFilter, statusFilter]);
 
   const handleCreate = async () => {
     const v = await form.validateFields();
@@ -71,6 +86,33 @@ export default function QuotationsPage() {
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
         <Typography.Title level={4} style={{ margin: 0 }}>Quotations</Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); setOpen(true); }}>New Quotation</Button>
+      </div>
+
+      <div style={{ marginBottom: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <Select
+          mode="multiple"
+          allowClear
+          maxTagCount="responsive"
+          placeholder="Departments: All"
+          style={{ minWidth: 280 }}
+          value={departmentIdsFilter}
+          options={departments.map((d) => ({ value: d.id, label: d.name }))}
+          onChange={(vals) => setDepartmentIdsFilter((vals || []).map((v) => Number(v)))}
+        />
+        <Select
+          allowClear
+          placeholder="Status: All"
+          style={{ minWidth: 180 }}
+          value={statusFilter}
+          onChange={(value) => setStatusFilter(value)}
+          options={[
+            { value: "draft", label: "Draft" },
+            { value: "issued", label: "Issued" },
+            { value: "accepted", label: "Accepted" },
+            { value: "rejected", label: "Rejected" },
+            { value: "cancelled", label: "Cancelled" },
+          ]}
+        />
       </div>
 
       <Table

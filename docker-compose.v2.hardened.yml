@@ -1,0 +1,14 @@
+services:
+  backend:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - storage_data_v2:/app/storage_v2
+
+  frontend:
+    # Serve production build instead of dev server for hardened runtime.
+    command: sh -lc "npm run build && npm run preview -- --host 0.0.0.0 --port 5173"
+    volumes:
+      - /app/node_modules
+
+volumes:
+  storage_data_v2:

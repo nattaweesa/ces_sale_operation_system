@@ -5,6 +5,7 @@ import {
 } from "antd";
 import { FilePdfOutlined, PlusOutlined } from "@ant-design/icons";
 import { quotationsApi } from "../api";
+import api from "../api/client";
 
 interface AttachmentOption {
   productId: number;
@@ -38,7 +39,6 @@ export default function MaterialApprovalPage() {
         if (!line.product_id || seen.has(line.product_id)) continue;
         seen.add(line.product_id);
         // Fetch product attachments
-        const { default: api } = await import("../api/client");
         const attRes = await api.get(`/products/${line.product_id}/attachments`);
         for (const att of attRes.data) {
           if (att.file_type === "pdf") {
