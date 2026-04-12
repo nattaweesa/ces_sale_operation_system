@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { rolePermissionsApi } from "../api";
 import ThemeToggle from "./ThemeToggle";
+import { useThemeStore } from "../store/themeStore";
 
 type NavChild = { key: string; label: string; path: string; icon: string };
 type NavGroup = { key: string; label: string; icon: string; children: NavChild[] };
@@ -116,6 +117,8 @@ export default function AppLayout() {
   const location = useLocation();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
+  const themeName = useThemeStore((s) => s.themeName);
+  const isAtrium = themeName === "atrium-dark";
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -204,8 +207,25 @@ export default function AppLayout() {
     ? user.full_name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)
     : "U";
 
+  const sidebarShellClass = isAtrium
+    ? "border-[#162649] bg-gradient-to-b from-[#081632] to-[#030b1f]"
+    : "border-[rgb(var(--outline-variant))] bg-[rgb(var(--surface-container-lowest))]";
+  const topbarClass = isAtrium
+    ? "border-[#17284c] bg-[#091735]/80"
+    : "border-[rgb(var(--outline-variant))] bg-[rgb(var(--surface-container-lowest))/0.92]";
+  const shellTextClass = isAtrium ? "text-[#dbe3ff]" : "text-[rgb(var(--on-surface))]";
+  const mutedTextClass = isAtrium ? "text-[#98a5c8]" : "text-[rgb(var(--on-surface-variant))]";
+  const hoverShellClass = isAtrium ? "hover:bg-[#111e3d]" : "hover:bg-[rgb(var(--surface-container-low))]";
+  const dividerClass = isAtrium ? "bg-[#243a67]" : "bg-[rgb(var(--outline-variant))]";
+  const profileMenuClass = isAtrium
+    ? "border-[#1d3159] bg-[#091632]"
+    : "border-[rgb(var(--outline-variant))] bg-[rgb(var(--surface-container-lowest))]";
+  const mainBgClass = isAtrium
+    ? "bg-[radial-gradient(circle_at_20%_0%,rgba(88,106,200,0.08),transparent_35%)]"
+    : "bg-[radial-gradient(circle_at_20%_0%,rgba(19,27,46,0.06),transparent_35%)]";
+
   return (
-    <div className="min-h-screen bg-[#030a1a] font-body text-on-surface transition-colors duration-300">
+    <div className={`min-h-screen font-body transition-colors duration-300 ${isAtrium ? "bg-[#030a1a] text-[#dbe3ff]" : "bg-[rgb(var(--background))] text-[rgb(var(--on-surface))]"}`}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -215,15 +235,15 @@ export default function AppLayout() {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 h-screen w-64 border-r border-[#162649] bg-gradient-to-b from-[#081632] to-[#030b1f] flex flex-col z-50 transition-transform duration-300 ease-in-out ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+      <aside className={`fixed left-0 top-0 h-screen w-64 border-r flex flex-col z-50 transition-transform duration-300 ease-in-out ${sidebarShellClass} ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
         {/* Logo */}
         <div className="px-6 py-6 mb-3 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#aeb2ff] to-[#7a7ff5] flex items-center justify-center flex-shrink-0 shadow-[0_10px_30px_rgba(55,73,168,0.55)]">
             <span className="text-[#111a55] text-[11px] font-extrabold tracking-wide leading-none">CES</span>
           </div>
           <div>
-            <h1 className="text-sm font-bold text-[#dbe3ff] font-headline leading-tight">CES</h1>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-[#92a0c2]">Sale Operation System</p>
+            <h1 className={`text-sm font-bold font-headline leading-tight ${shellTextClass}`}>CES</h1>
+            <p className={`text-[10px] uppercase tracking-[0.18em] ${isAtrium ? "text-[#92a0c2]" : mutedTextClass}`}>Sale Operation System</p>
           </div>
         </div>
 
@@ -238,8 +258,10 @@ export default function AppLayout() {
                   onClick={() => handleNav(item.path)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
                     active
-                      ? "bg-[#1a2747] text-[#dbe3ff] font-bold border-l-2 border-[#8b92ff]"
-                      : "text-[#98a5c8] hover:bg-[#111e3d] hover:text-[#dbe3ff]"
+                      ? isAtrium
+                        ? "bg-[#1a2747] text-[#dbe3ff] font-bold border-l-2 border-[#8b92ff]"
+                        : "bg-[rgb(var(--surface-container-low))] text-[rgb(var(--on-surface))] font-bold border-l-2 border-[rgb(var(--primary))]"
+                      : `${mutedTextClass} ${hoverShellClass} hover:text-[rgb(var(--on-surface))]`
                   }`}
                 >
                   <span className="material-symbols-outlined text-xl">{item.icon}</span>
@@ -257,8 +279,8 @@ export default function AppLayout() {
                   onClick={() => toggleGroup(item.key)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
                     groupActive
-                      ? "text-[#dbe3ff] font-bold"
-                      : "text-[#98a5c8] hover:bg-[#111e3d] hover:text-[#dbe3ff]"
+                      ? shellTextClass
+                      : `${mutedTextClass} ${hoverShellClass} hover:text-[rgb(var(--on-surface))]`
                   }`}
                 >
                   <span className="material-symbols-outlined text-xl">{item.icon}</span>
@@ -268,7 +290,7 @@ export default function AppLayout() {
                   </span>
                 </button>
                 {isOpen && (
-                  <div className="ml-4 pl-4 border-l border-[#22345d] mt-0.5 space-y-0.5">
+                  <div className={`ml-4 pl-4 border-l mt-0.5 space-y-0.5 ${isAtrium ? "border-[#22345d]" : "border-[rgb(var(--outline-variant))]"}`}>
                     {item.children.map((child) => {
                       const childActive = currentKey === child.key;
                       return (
@@ -277,8 +299,10 @@ export default function AppLayout() {
                           onClick={() => handleNav(child.path)}
                           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors duration-150 ${
                             childActive
-                              ? "bg-[#1a2747] text-[#dbe3ff] font-semibold"
-                              : "text-[#98a5c8] hover:bg-[#111e3d] hover:text-[#dbe3ff]"
+                              ? isAtrium
+                                ? "bg-[#1a2747] text-[#dbe3ff] font-semibold"
+                                : "bg-[rgb(var(--surface-container-low))] text-[rgb(var(--on-surface))] font-semibold"
+                              : `${mutedTextClass} ${hoverShellClass} hover:text-[rgb(var(--on-surface))]`
                           }`}
                         >
                           <span className="material-symbols-outlined text-base">{child.icon}</span>
@@ -294,91 +318,79 @@ export default function AppLayout() {
         </nav>
 
         {/* Bottom */}
-        <div className="px-4 pt-3 pb-5 border-t border-[#17284c] space-y-0.5">
+        <div className={`px-4 pt-3 pb-5 border-t space-y-0.5 ${isAtrium ? "border-[#17284c]" : "border-[rgb(var(--outline-variant))]"}`}>
           <div className="px-4 pb-3">
             <ThemeToggle compact />
           </div>
           <div className="px-4 pb-2">
-            <button className="w-full rounded-xl bg-gradient-to-r from-[#8d93ff] to-[#6a71ed] py-2.5 text-[#0e154a] font-semibold text-sm shadow-[0_10px_25px_rgba(116,129,255,0.35)]">
+            <button className={`w-full rounded-xl py-2.5 text-sm font-semibold ${isAtrium ? "bg-gradient-to-r from-[#8d93ff] to-[#6a71ed] text-[#0e154a] shadow-[0_10px_25px_rgba(116,129,255,0.35)]" : "bg-[rgb(var(--primary))] text-[rgb(var(--on-primary))] shadow-[0_10px_25px_rgba(19,27,46,0.18)]"}`}>
               + New Project
             </button>
           </div>
           <button
             onClick={() => { logout(); navigate("/login"); }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-[#98a5c8] hover:bg-[#111e3d] hover:text-[#dbe3ff] transition-colors duration-150"
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors duration-150 ${mutedTextClass} ${hoverShellClass} hover:text-[rgb(var(--on-surface))]`}
           >
             <span className="material-symbols-outlined text-xl">logout</span>
             <span className="font-headline tracking-tight">Logout</span>
           </button>
           <div className="flex items-center gap-3 px-4 py-2.5 mt-1">
-            <div className="w-8 h-8 rounded-full bg-[#2a3f73] flex items-center justify-center text-[#dbe3ff] text-xs font-bold flex-shrink-0">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${isAtrium ? "bg-[#2a3f73] text-[#dbe3ff]" : "bg-[rgb(var(--surface-container-high))] text-[rgb(var(--on-surface))]"}`}>
               {initials}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-[#dbe3ff] truncate">{user?.full_name}</p>
-              <p className="text-[10px] text-[#98a5c8] capitalize">{user?.role?.replace("_", " ")}</p>
+              <p className={`text-sm font-semibold truncate ${shellTextClass}`}>{user?.full_name}</p>
+              <p className={`text-[10px] capitalize ${mutedTextClass}`}>{user?.role?.replace("_", " ")}</p>
             </div>
           </div>
         </div>
       </aside>
 
       {/* Top Header */}
-      <header className="fixed top-0 left-0 right-0 lg:left-64 h-16 z-40 border-b border-[#17284c] bg-[#091735]/80 backdrop-blur-xl flex items-center justify-between px-4 lg:px-8">
+      <header className={`fixed top-0 left-0 right-0 lg:left-64 h-16 z-40 border-b backdrop-blur-xl flex items-center justify-between px-4 lg:px-8 ${topbarClass}`}>
         <div className="flex items-center gap-4">
           {/* Hamburger — mobile only */}
           <button
-            className="lg:hidden p-2 rounded-lg text-[#98a5c8] hover:bg-[#111e3d] transition-colors"
+            className={`lg:hidden p-2 rounded-lg transition-colors ${mutedTextClass} ${hoverShellClass}`}
             onClick={() => setSidebarOpen((v) => !v)}
             aria-label="Toggle menu"
           >
             <span className="material-symbols-outlined text-2xl">{sidebarOpen ? "close" : "menu"}</span>
           </button>
           <div>
-            <p className="text-[#dbe3ff] font-semibold font-headline text-lg leading-none">Project Atrium</p>
+            <p className={`font-semibold font-headline text-lg leading-none ${shellTextClass}`}>CES Sale Operation</p>
+            <p className={`text-xs mt-0.5 ${mutedTextClass}`}>Workspace</p>
           </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-            <button className="text-[#dbe3ff] border-b border-[#a2a8ff] pb-1">Overview</button>
-            <button className="text-[#98a5c8] hover:text-[#dbe3ff]">Timeline</button>
-            <button className="text-[#98a5c8] hover:text-[#dbe3ff]">Milestones</button>
-          </nav>
         </div>
         <div className="flex items-center gap-3">
-          <div className="relative hidden md:block">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#8e9bbc] text-lg">search</span>
-            <input
-              className="w-[280px] bg-[#020812] border border-[#1f3158] rounded-full pl-10 pr-4 py-2 text-sm text-[#dbe3ff] focus:ring-2 focus:ring-[#8d93ff] transition-all outline-none"
-              placeholder="Search parameters..."
-            />
-          </div>
-          <ThemeToggle compact />
           <button
-            className="p-2 text-[#98a5c8] hover:text-[#dbe3ff] hover:bg-[#111e3d] rounded-lg transition-colors"
+            className={`p-2 rounded-lg transition-colors ${mutedTextClass} ${hoverShellClass} hover:text-[rgb(var(--on-surface))]`}
             onClick={() => setSidebarOpen(false)}
           >
             <span className="material-symbols-outlined">notifications</span>
           </button>
           <button
-            className="p-2 text-[#98a5c8] hover:text-[#dbe3ff] hover:bg-[#111e3d] rounded-lg transition-colors"
+            className={`p-2 rounded-lg transition-colors ${mutedTextClass} ${hoverShellClass} hover:text-[rgb(var(--on-surface))]`}
           >
             <span className="material-symbols-outlined">help</span>
           </button>
-          <div className="h-6 w-px bg-[#243a67]"></div>
+          <div className={`h-6 w-px ${dividerClass}`}></div>
           <div ref={profileMenuRef} className="relative">
             <button
               onClick={() => { setSidebarOpen(false); setProfileMenuOpen((v) => !v); }}
-              className="flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-[#111e3d] transition-colors"
+              className={`flex items-center gap-2 rounded-xl px-2 py-1 transition-colors ${hoverShellClass}`}
             >
-              <div className="w-8 h-8 rounded-full bg-[#2a3f73] flex items-center justify-center text-[#dbe3ff] text-xs font-bold">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isAtrium ? "bg-[#2a3f73] text-[#dbe3ff]" : "bg-[rgb(var(--surface-container-high))] text-[rgb(var(--on-surface))]"}`}>
                 {initials}
               </div>
-              <span className="text-sm font-medium text-[#dbe3ff] hidden md:block">{user?.full_name}</span>
-              <span className="material-symbols-outlined text-base text-[#98a5c8]">expand_more</span>
+              <span className={`text-sm font-medium hidden md:block ${shellTextClass}`}>{user?.full_name}</span>
+              <span className={`material-symbols-outlined text-base ${mutedTextClass}`}>expand_more</span>
             </button>
             {profileMenuOpen && (
-              <div className="absolute right-0 top-11 w-44 rounded-xl border border-[#1d3159] bg-[#091632] shadow-2xl z-50 overflow-hidden">
+              <div className={`absolute right-0 top-11 w-44 rounded-xl border shadow-2xl z-50 overflow-hidden ${profileMenuClass}`}>
                 <button
                   onClick={goProfile}
-                  className="w-full text-left px-3 py-2 text-sm text-[#dbe3ff] hover:bg-[#111e3d]"
+                  className={`w-full text-left px-3 py-2 text-sm ${shellTextClass} ${hoverShellClass}`}
                 >
                   My Profile
                 </button>
@@ -395,7 +407,7 @@ export default function AppLayout() {
       </header>
 
       {/* Main Content */}
-      <main className="ml-0 lg:ml-64 pt-16 min-h-screen bg-[radial-gradient(circle_at_20%_0%,rgba(88,106,200,0.08),transparent_35%)]">
+      <main className={`ml-0 lg:ml-64 pt-16 min-h-screen ${mainBgClass}`}>
         <div className="p-6 max-w-[1600px] mx-auto">
           <Outlet />
         </div>
