@@ -469,11 +469,17 @@ export default function DealsPage() {
 
   const ownerOptions = useMemo(() => {
     if (!isManager) return [];
-    return owners
+    const filtered = owners
       .filter((u) => u.is_active)
-      .filter((u) => ["sales", "manager"].includes(String(u.role || "").toLowerCase()))
+      .filter((u) => ["sales", "manager", "admin"].includes(String(u.role || "").toLowerCase()))
       .map((u) => ({ value: u.id, label: u.full_name }));
-  }, [owners, isManager]);
+    // ensure current user is always available as an option
+    if (user && !filtered.find((o) => o.value === user.user_id)) {
+      const me = owners.find((u) => u.id === user.user_id);
+      if (me) filtered.unshift({ value: me.id, label: me.full_name });
+    }
+    return filtered;
+  }, [owners, isManager, user]);
 
   const projectNameById = useMemo(() => {
     const map: Record<number, string> = {};
@@ -786,6 +792,9 @@ export default function DealsPage() {
               <Select
                 allowClear
                 showSearch
+                filterOption={(input, option) =>
+                  String(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                }
                 disabled={!selectedCustomerTypeId}
                 options={companyOptions}
                 placeholder={selectedCustomerTypeId ? "Select company" : "Select customer type first"}
@@ -810,7 +819,15 @@ export default function DealsPage() {
               />
             </Form.Item>
             <Form.Item name="project_id" label="Project">
-              <Select allowClear options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+              <Select
+                allowClear
+                showSearch
+                filterOption={(input, option) =>
+                  String(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                }
+                options={projects.map((p) => ({ value: p.id, label: p.name }))}
+                placeholder="Search project..."
+              />
             </Form.Item>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isManager ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 12 }}>
