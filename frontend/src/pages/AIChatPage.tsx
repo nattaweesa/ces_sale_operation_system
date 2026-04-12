@@ -190,7 +190,7 @@ export default function AIChatPage() {
           <div>
             <Text strong style={{ fontSize: 15 }}>CES AI Assistant</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>ถามข้อมูล Deal, Pipeline, CES Stage และ Project Status ในระบบได้เลย</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>ถามข้อมูล Deal, Pipeline, CES Stage, Project Status และข้อมูลใน CES AI Knowledge ได้เลย</Text>
           </div>
         </div>
         {messages.length > 0 && (
@@ -215,7 +215,7 @@ export default function AIChatPage() {
             </div>
             <div style={{ textAlign: "center" }}>
               <Text strong style={{ fontSize: 16, display: "block" }}>สวัสดี! ผม CES AI Assistant</Text>
-              <Text type="secondary" style={{ fontSize: 13 }}>ถามได้เลยครับ เกี่ยวกับ Deal, Pipeline, CES Stage และ Project Status</Text>
+              <Text type="secondary" style={{ fontSize: 13 }}>ถามได้เลยครับ เกี่ยวกับ Deal, Pipeline, CES Stage, Project Status และ CES AI Knowledge</Text>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", maxWidth: 600 }}>
               {SUGGESTED_QUESTIONS.map((q) => (
@@ -309,7 +309,7 @@ export default function AIChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="พิมพ์คำถามเกี่ยวกับ Deal, Pipeline, CES Stage... (Enter เพื่อส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
+            placeholder="พิมพ์คำถามเกี่ยวกับ Deal, Pipeline, CES Stage, Project Status หรือ CES AI Knowledge... (Enter เพื่อส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
             autoSize={{ minRows: 1, maxRows: 5 }}
             style={{ resize: "none", flex: 1, borderRadius: 12 }}
             disabled={loading || historyLoading}
