@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { dealsApi, usersApi } from "../api";
+import { dealsApi, departmentsApi, usersApi } from "../api";
 import { useAuthStore } from "../store/authStore";
 import { formatTHBCompact } from "../utils/currency";
 
@@ -10,10 +10,13 @@ function fmt(n: number) {
 export default function DealsDashboardPage() {
   const user = useAuthStore((s) => s.user);
   const isManager = ["admin", "manager", "sales_admin"].includes(user?.role || "");
+  const canFilterDepartment = ["admin", "manager"].includes(user?.role || "");
 
   const [data, setData] = useState<any>(null);
   const [ownerIdFilter, setOwnerIdFilter] = useState<number | null>(null);
+  const [departmentIdFilter, setDepartmentIdFilter] = useState<number | null>(null);
   const [ownerOptions, setOwnerOptions] = useState<Array<{ owner_id: number; owner_name: string }>>([]);
+  const [departmentOptions, setDepartmentOptions] = useState<Array<{ id: number; name: string }>>([]);
   const [allowedOwnerIds, setAllowedOwnerIds] = useState<number[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,8 +25,24 @@ export default function DealsDashboardPage() {
     setLoading(true);
     setError("");
     try {
+      if (canFilterDepartment && departmentOptions.length === 0) {
+        try {
+          const depRes = await departmentsApi.list();
+          const opts = (depRes.data || [])
+            .filter((d: any) => !!d.is_active)
+            .map((d: any) => ({ id: Number(d.id), name: String(d.name) }))
+            .filter((d: { id: number }) => Number.isFinite(d.id));
+          setDepartmentOptions(opts);
+        } catch {
+          setDepartmentOptions([]);
+        }
+      }
+
       const r = isManager
-        ? await dealsApi.dashboardManager(ownerIdFilter ? { owner_id: ownerIdFilter } : undefined)
+        ? await dealsApi.dashboardManager({
+          ...(ownerIdFilter ? { owner_id: ownerIdFilter } : {}),
+          ...(departmentIdFilter ? { department_id: departmentIdFilter } : {}),
+        })
         : await dealsApi.dashboardMy();
       setData(r.data);
 
@@ -59,7 +78,7 @@ export default function DealsDashboardPage() {
   useEffect(() => {
     load();
     // reload when role context or owner filter changes
-  }, [isManager, ownerIdFilter]);
+  }, [isManager, ownerIdFilter, departmentIdFilter]);
 
   const pipeline = Number(data?.pipeline_amount || 0);
   const totalDeals = data?.total_deals || 0;
@@ -121,7 +140,7 @@ export default function DealsDashboardPage() {
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-[#97a6c9] uppercase tracking-wide">Deal Owner</label>
               <select
-                className="px-3 py-2 rounded-lg border border-[#233861] bg-[#0f1d3b] text-[#dbe3ff] text-sm min-w-[220px]"
+                className="dashboard-filter-select px-3 py-2 rounded-lg border border-[#233861] bg-[#0f1d3b] text-[#dbe3ff] text-sm min-w-[220px]"
                 value={ownerIdFilter ?? "all"}
                 onChange={(e) => setOwnerIdFilter(e.target.value === "all" ? null : Number(e.target.value))}
               >
@@ -135,10 +154,28 @@ export default function DealsDashboardPage() {
             </div>
           )}
 
+          {canFilterDepartment && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-[#97a6c9] uppercase tracking-wide">Departments</label>
+              <select
+                className="dashboard-filter-select px-3 py-2 rounded-lg border border-[#233861] bg-[#0f1d3b] text-[#dbe3ff] text-sm min-w-[220px]"
+                value={departmentIdFilter ?? "all"}
+                onChange={(e) => setDepartmentIdFilter(e.target.value === "all" ? null : Number(e.target.value))}
+              >
+                <option value="all">All departments</option>
+                {departmentOptions.map((dep) => (
+                  <option key={dep.id} value={dep.id}>
+                    {dep.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <button
             onClick={load}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#8f95ff] to-[#6f76ef] text-[#0f154b] text-sm font-semibold hover:brightness-105 transition disabled:opacity-60"
+            className="dashboard-refresh-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#8f95ff] to-[#6f76ef] text-[#0f154b] text-sm font-semibold hover:brightness-105 transition disabled:opacity-60"
           >
             <span className={`material-symbols-outlined text-lg ${loading ? "animate-spin" : ""}`}>refresh</span>
             Refresh

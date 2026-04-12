@@ -240,7 +240,7 @@ export const dealsApi = {
   updateTask: (id: number, taskId: number, data: unknown) => api.put(`/deals/${id}/tasks/${taskId}`, data),
   addActivity: (id: number, data: unknown) => api.post(`/deals/${id}/activities`, data),
   dashboardMy: () => api.get("/deals/dashboard/my"),
-  dashboardManager: (params?: { owner_id?: number }) => api.get("/deals/dashboard/manager", { params }),
+  dashboardManager: (params?: { owner_id?: number; department_id?: number }) => api.get("/deals/dashboard/manager", { params }),
   reviewReportManager: (params?: { department_ids?: number[] }) => api.get("/deals/review-report/manager", { params }),
 };
 

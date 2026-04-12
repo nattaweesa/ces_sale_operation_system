@@ -596,6 +596,7 @@ async def dashboard_my(
 @router.get("/dashboard/manager", response_model=DashboardOut)
 async def dashboard_manager(
     owner_id: Optional[int] = Query(None),
+    department_id: Optional[int] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -605,6 +606,8 @@ async def dashboard_manager(
     stmt = select(Deal).options(selectinload(Deal.owner), selectinload(Deal.tasks))
     if owner_id is not None:
         stmt = stmt.where(Deal.owner_id == owner_id)
+    if department_id is not None:
+        stmt = stmt.where(Deal.department_id == department_id)
     result = await db.execute(stmt)
     deals = result.scalars().all()
     return _build_dashboard(deals, include_owner=True)

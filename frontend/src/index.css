@@ -185,6 +185,17 @@ h1, h2, h3, h4, .font-headline {
   border-color: rgb(var(--outline-variant)) !important;
 }
 
+[data-theme="classic"] .deals-dashboard-page .dashboard-filter-select {
+  background-color: rgb(var(--surface)) !important;
+  color: rgb(var(--on-surface)) !important;
+  border-color: rgb(var(--outline-variant)) !important;
+}
+
+[data-theme="classic"] .deals-dashboard-page .dashboard-refresh-btn {
+  background: rgb(var(--primary)) !important;
+  color: rgb(var(--on-primary)) !important;
+}
+
 [data-theme="classic"] .deals-funnel-page .bg-\[\#1a2848\],
 [data-theme="classic"] .deals-funnel-page .hover\:bg-\[\#1f3159\]:hover,
 [data-theme="classic"] .deals-funnel-page .bg-\[\#1f3159\] {
