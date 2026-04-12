@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { rolePermissionsApi } from "../api";
-import ThemeToggle from "./ThemeToggle";
 import { useThemeStore } from "../store/themeStore";
+import { appThemeOptions } from "../theme/themes";
 
 type NavChild = { key: string; label: string; path: string; icon: string };
 type NavGroup = { key: string; label: string; icon: string; children: NavChild[] };
@@ -121,6 +121,7 @@ export default function AppLayout() {
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const themeName = useThemeStore((s) => s.themeName);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const isAtrium = themeName === "atrium-dark";
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -321,9 +322,6 @@ export default function AppLayout() {
 
         {/* Bottom */}
         <div className={`px-4 pt-3 pb-5 border-t space-y-0.5 ${isAtrium ? "border-[#17284c]" : "border-[rgb(var(--outline-variant))]"}`}>
-          <div className="px-4 pb-3">
-            <ThemeToggle compact />
-          </div>
           <button
             onClick={() => { logout(); navigate("/login"); }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors duration-150 ${mutedTextClass} ${hoverShellClass} hover:text-[rgb(var(--on-surface))]`}
@@ -331,15 +329,6 @@ export default function AppLayout() {
             <span className="material-symbols-outlined text-xl">logout</span>
             <span className="font-headline tracking-tight">Logout</span>
           </button>
-          <div className="flex items-center gap-3 px-4 py-2.5 mt-1">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${isAtrium ? "bg-[#2a3f73] text-[#dbe3ff]" : "bg-[rgb(var(--surface-container-high))] text-[rgb(var(--on-surface))]"}`}>
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <p className={`text-sm font-semibold truncate ${shellTextClass}`}>{user?.full_name}</p>
-              <p className={`text-[10px] capitalize ${mutedTextClass}`}>{user?.role?.replace("_", " ")}</p>
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -383,16 +372,42 @@ export default function AppLayout() {
               <span className={`material-symbols-outlined text-base ${mutedTextClass}`}>expand_more</span>
             </button>
             {profileMenuOpen && (
-              <div className={`absolute right-0 top-11 w-44 rounded-xl border shadow-2xl z-50 overflow-hidden ${profileMenuClass}`}>
+              <div className={`absolute right-0 top-11 w-60 rounded-xl border shadow-2xl z-50 overflow-hidden ${profileMenuClass}`}>
+                {/* User info */}
+                <div className={`px-4 py-3 border-b ${isAtrium ? "border-[#1d3159]" : "border-[rgb(var(--outline-variant))]"}`}>
+                  <p className={`text-sm font-semibold ${shellTextClass}`}>{user?.full_name}</p>
+                  <p className={`text-[11px] capitalize mt-0.5 ${mutedTextClass}`}>{user?.role?.replace(/_/g, " ")}</p>
+                </div>
+                {/* Theme selector */}
+                <div className={`px-4 py-3 border-b ${isAtrium ? "border-[#1d3159]" : "border-[rgb(var(--outline-variant))]"}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wide mb-2 ${mutedTextClass}`}>Theme</p>
+                  <div className="flex gap-1.5">
+                    {appThemeOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setTheme(opt.value)}
+                        className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${
+                          themeName === opt.value
+                            ? isAtrium
+                              ? "bg-[#2a3f73] text-[#dbe3ff]"
+                              : "bg-[rgb(var(--surface-container-high))] text-[rgb(var(--on-surface))]"
+                            : `${mutedTextClass} ${hoverShellClass}`
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <button
                   onClick={goProfile}
-                  className={`w-full text-left px-3 py-2 text-sm ${shellTextClass} ${hoverShellClass}`}
+                  className={`w-full text-left px-4 py-2.5 text-sm ${shellTextClass} ${hoverShellClass}`}
                 >
                   My Profile
                 </button>
                 <button
                   onClick={doLogout}
-                  className="w-full text-left px-3 py-2 text-sm text-[#ff8ba1] hover:bg-[#2a1320]"
+                  className="w-full text-left px-4 py-2.5 text-sm text-[#ff8ba1] hover:bg-[#2a1320]"
                 >
                   Logout
                 </button>
