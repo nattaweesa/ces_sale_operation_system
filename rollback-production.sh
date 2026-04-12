@@ -2,12 +2,12 @@
 
 set -euo pipefail
 
-VPS_USER="root"
-VPS_HOST="187.77.156.215"
-VPS_PATH="/root/ces_sale_operation_system"
+VPS_USER="${VPS_USER:-cesdeploy}"
+VPS_HOST="${VPS_HOST:-187.77.156.215}"
+VPS_PATH="${VPS_PATH:-/srv/ces_sale_operation_system}"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.prod"
-BACKUP_ROOT="/root/ces_sale_operation_backups/production"
+BACKUP_ROOT="${BACKUP_ROOT:-/srv/ces_sale_operation_backups/production}"
 BACKUP_NAME="${1:-latest}"
 
 ssh "$VPS_USER@$VPS_HOST" "bash -s" <<EOF

@@ -8,12 +8,19 @@
 set -euo pipefail
 
 ENVIRONMENT="${1:-quick}"
-VPS_USER="root"
-VPS_HOST="187.77.156.215"
-VPS_PATH="/root/ces_sale_operation_system"
+VPS_USER="${VPS_USER:-cesdeploy}"
+VPS_HOST="${VPS_HOST:-187.77.156.215}"
+VPS_PATH="${VPS_PATH:-/srv/ces_sale_operation_system}"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.prod"
 DB_NAME="ces_sale_operation"
+MIN_AXIOS_VERSION="${MIN_AXIOS_VERSION:-1.15.0}"
+
+version_ge() {
+    local v1="$1"
+    local v2="$2"
+    [[ "$(printf '%s\n' "$v2" "$v1" | sort -V | head -n1)" == "$v2" ]]
+}
 
 if [[ "$ENVIRONMENT" != "build" && "$ENVIRONMENT" != "quick" ]]; then
     echo "❌ Invalid mode: '$ENVIRONMENT'"
@@ -42,6 +49,16 @@ if [[ "$CURRENT_BRANCH" != "main" ]]; then
     exit 1
 fi
 
+LOCAL_AXIOS_VERSION="$(awk '/node_modules\/axios/{flag=1;next} flag&&/"version"/{gsub(/[", ]/,"",$2);print $2;flag=0}' frontend/package-lock.json)"
+if [[ -z "$LOCAL_AXIOS_VERSION" ]]; then
+    echo "❌ Unable to read axios version from frontend/package-lock.json"
+    exit 1
+fi
+if ! version_ge "$LOCAL_AXIOS_VERSION" "$MIN_AXIOS_VERSION"; then
+    echo "❌ Refusing deploy: axios lockfile version '$LOCAL_AXIOS_VERSION' is lower than required '$MIN_AXIOS_VERSION'"
+    exit 1
+fi
+
 # Push to remote
 echo ""
 echo "🔄 Pushing to origin..."
@@ -61,8 +78,22 @@ if [[ "$ENVIRONMENT" == "build" ]]; then
         set -e
         cd "$VPS_PATH"
         COMPOSE="docker compose -f $COMPOSE_FILE --env-file $ENV_FILE"
+        if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "   ❌ Refusing deploy on VPS: tracked changes present in $VPS_PATH"
+            git status --short
+            exit 1
+        fi
         echo "   📥 Pulling latest main..."
         git fetch origin && git checkout main && git pull --ff-only
+        REMOTE_AXIOS_VERSION=\$(awk '/node_modules\/axios/{flag=1;next} flag&&/"version"/{gsub(/[", ]/,"",\$2);print \$2;flag=0}' frontend/package-lock.json)
+        if [[ -z "\$REMOTE_AXIOS_VERSION" ]]; then
+            echo "   ❌ Unable to read axios version on VPS"
+            exit 1
+        fi
+        if [[ "\$(printf '%s\\n' "$MIN_AXIOS_VERSION" "\$REMOTE_AXIOS_VERSION" | sort -V | head -n1)" != "$MIN_AXIOS_VERSION" ]]; then
+            echo "   ❌ Refusing deploy on VPS: axios lockfile version '\$REMOTE_AXIOS_VERSION' is lower than required '$MIN_AXIOS_VERSION'"
+            exit 1
+        fi
         echo "   🔨 Building images..."
         \$COMPOSE build
         echo "   🚀 Starting services..."
@@ -87,8 +118,22 @@ else
         set -e
         cd "$VPS_PATH"
         COMPOSE="docker compose -f $COMPOSE_FILE --env-file $ENV_FILE"
+        if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "   ❌ Refusing deploy on VPS: tracked changes present in $VPS_PATH"
+            git status --short
+            exit 1
+        fi
         echo "   📥 Pulling latest main..."
         git fetch origin && git checkout main && git pull --ff-only
+        REMOTE_AXIOS_VERSION=\$(awk '/node_modules\/axios/{flag=1;next} flag&&/"version"/{gsub(/[", ]/,"",\$2);print \$2;flag=0}' frontend/package-lock.json)
+        if [[ -z "\$REMOTE_AXIOS_VERSION" ]]; then
+            echo "   ❌ Unable to read axios version on VPS"
+            exit 1
+        fi
+        if [[ "\$(printf '%s\\n' "$MIN_AXIOS_VERSION" "\$REMOTE_AXIOS_VERSION" | sort -V | head -n1)" != "$MIN_AXIOS_VERSION" ]]; then
+            echo "   ❌ Refusing deploy on VPS: axios lockfile version '\$REMOTE_AXIOS_VERSION' is lower than required '$MIN_AXIOS_VERSION'"
+            exit 1
+        fi
         echo "   🔄 Restarting services..."
         \$COMPOSE up -d
         BACKEND_CONTAINER=\$(\$COMPOSE ps -q backend)
@@ -123,7 +168,7 @@ if [[ $BUILD_STATUS -ge 3 ]]; then
     echo "  📊 API Docs: http://187.77.156.215:8000/docs"
 else
     echo "⚠️  Warning: Some services may not be running. Check logs:"
-    echo "  ssh root@187.77.156.215"
+    echo "  ssh $VPS_USER@$VPS_HOST"
     echo "  cd $VPS_PATH"
     echo "  docker compose -f $COMPOSE_FILE --env-file $ENV_FILE logs -f"
     echo ""

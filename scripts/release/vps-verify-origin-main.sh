@@ -7,7 +7,7 @@ set -euo pipefail
 #   10 = behind/ahead/diverged
 #   2+ = operational error
 
-APP_DIR="${APP_DIR:-/root/ces_sale_operation_system}"
+APP_DIR="${APP_DIR:-/srv/ces_sale_operation_system}"
 REMOTE_NAME="${REMOTE_NAME:-origin}"
 MAIN_REF="${MAIN_REF:-main}"
 

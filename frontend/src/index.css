@@ -2,20 +2,139 @@
 @tailwind components;
 @tailwind utilities;
 
+:root,
+[data-theme="classic"] {
+  --font-headline: "Manrope";
+  --font-body: "Inter";
+  --font-label: "Inter";
+  --background: 246 250 254;
+  --surface: 246 250 254;
+  --surface-dim: 214 218 222;
+  --surface-bright: 246 250 254;
+  --surface-container-lowest: 255 255 255;
+  --surface-container-low: 240 244 248;
+  --surface-container: 234 238 242;
+  --surface-container-high: 228 233 237;
+  --surface-container-highest: 223 227 231;
+  --surface-variant: 223 227 231;
+  --on-background: 23 28 31;
+  --on-surface: 23 28 31;
+  --on-surface-variant: 69 70 77;
+  --outline: 118 119 125;
+  --outline-variant: 198 198 205;
+  --primary: 19 27 46;
+  --primary-container: 19 27 46;
+  --primary-fixed: 218 226 253;
+  --primary-fixed-dim: 190 198 224;
+  --on-primary: 255 255 255;
+  --on-primary-container: 124 131 155;
+  --on-primary-fixed: 19 27 46;
+  --on-primary-fixed-variant: 63 70 92;
+  --secondary: 81 95 116;
+  --secondary-container: 213 227 253;
+  --secondary-fixed: 213 227 253;
+  --secondary-fixed-dim: 185 199 224;
+  --on-secondary: 255 255 255;
+  --on-secondary-container: 87 101 123;
+  --on-secondary-fixed: 13 28 47;
+  --on-secondary-fixed-variant: 58 72 92;
+  --tertiary: 0 140 199;
+  --tertiary-container: 0 30 47;
+  --tertiary-fixed: 201 230 255;
+  --tertiary-fixed-dim: 137 206 255;
+  --on-tertiary: 255 255 255;
+  --on-tertiary-container: 0 140 199;
+  --on-tertiary-fixed: 0 30 47;
+  --on-tertiary-fixed-variant: 0 76 110;
+  --error: 186 26 26;
+  --error-container: 255 218 214;
+  --on-error: 255 255 255;
+  --on-error-container: 147 0 10;
+  --inverse-surface: 44 49 52;
+  --inverse-on-surface: 237 241 245;
+  --inverse-primary: 190 198 224;
+  --surface-tint: 86 94 116;
+}
+
+[data-theme="atrium-dark"] {
+  --font-headline: "Plus Jakarta Sans";
+  --font-body: "Plus Jakarta Sans";
+  --font-label: "Plus Jakarta Sans";
+  --background: 6 14 32;
+  --surface: 6 14 32;
+  --surface-dim: 6 14 32;
+  --surface-bright: 31 43 73;
+  --surface-container-lowest: 0 0 0;
+  --surface-container-low: 9 19 40;
+  --surface-container: 15 25 48;
+  --surface-container-high: 20 31 56;
+  --surface-container-highest: 25 37 64;
+  --surface-variant: 25 37 64;
+  --on-background: 222 229 255;
+  --on-surface: 222 229 255;
+  --on-surface-variant: 163 170 196;
+  --outline: 109 117 140;
+  --outline-variant: 64 72 93;
+  --primary: 163 166 255;
+  --primary-container: 147 150 255;
+  --primary-fixed: 147 150 255;
+  --primary-fixed-dim: 131 135 255;
+  --on-primary: 15 0 164;
+  --on-primary-container: 10 0 129;
+  --on-primary-fixed: 0 0 0;
+  --on-primary-fixed-variant: 14 0 157;
+  --secondary: 193 128 255;
+  --secondary-container: 111 0 190;
+  --secondary-fixed: 229 198 255;
+  --secondary-fixed-dim: 219 180 255;
+  --on-secondary: 51 0 91;
+  --on-secondary-container: 233 205 255;
+  --on-secondary-fixed: 79 0 137;
+  --on-secondary-fixed-variant: 117 17 195;
+  --tertiary: 205 255 227;
+  --tertiary-container: 107 255 193;
+  --tertiary-fixed: 107 255 193;
+  --tertiary-fixed-dim: 90 240 180;
+  --on-tertiary: 0 105 72;
+  --on-tertiary-container: 0 96 66;
+  --on-tertiary-fixed: 0 75 51;
+  --on-tertiary-fixed-variant: 0 107 74;
+  --error: 255 110 132;
+  --error-container: 167 1 56;
+  --on-error: 73 0 19;
+  --on-error-container: 255 178 185;
+  --inverse-surface: 250 248 255;
+  --inverse-on-surface: 77 85 107;
+  --inverse-primary: 73 75 215;
+  --surface-tint: 163 166 255;
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   vertical-align: middle;
   user-select: none;
 }
 
+html,
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: #f6fafe;
-  color: #171c1f;
+  font-family: var(--font-body), sans-serif;
+  background-color: rgb(var(--background));
+  color: rgb(var(--on-background));
+  transition: background-color 220ms ease, color 220ms ease;
 }
 
 h1, h2, h3, h4, .font-headline {
-  font-family: 'Manrope', sans-serif;
+  font-family: var(--font-headline), sans-serif;
+}
+
+.font-body,
+.font-label {
+  font-family: var(--font-body), sans-serif;
+}
+
+::selection {
+  background: rgb(var(--primary));
+  color: rgb(var(--on-primary));
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -27,7 +146,7 @@ h1, h2, h3, h4, .font-headline {
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgb(var(--surface-container-highest) / 0.64);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }

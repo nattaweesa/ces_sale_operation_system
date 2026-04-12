@@ -22,12 +22,12 @@ import { useAuthStore } from "../store/authStore";
 import { formatTHBCompact, numberInputFormatter, numberInputParser } from "../utils/currency";
 
 const KANBAN_COLUMNS = [
-  { key: "lead", label: "Discovery", color: "bg-slate-400" },
-  { key: "qualified", label: "Qualified", color: "bg-tertiary-fixed-dim" },
-  { key: "proposal", label: "Proposal Sent", color: "bg-on-tertiary-container" },
-  { key: "negotiation", label: "Negotiation", color: "bg-on-primary-container" },
-  { key: "won", label: "Won", color: "bg-emerald-500" },
-  { key: "lost", label: "Lost", color: "bg-error" },
+  { key: "lead", label: "Discovery", color: "bg-[#7f91b9]" },
+  { key: "qualified", label: "Qualified", color: "bg-[#76c4ff]" },
+  { key: "proposal", label: "Proposal Sent", color: "bg-[#c8a6ff]" },
+  { key: "negotiation", label: "Negotiation", color: "bg-[#ffc074]" },
+  { key: "won", label: "Won", color: "bg-[#6bffc1]" },
+  { key: "lost", label: "Lost", color: "bg-[#ff8aa0]" },
 ];
 
 const STAGE_OPTIONS = [
@@ -64,16 +64,36 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
 };
 
 const PROJECT_STATUS_STYLES: Record<string, string> = {
-  design: "bg-sky-50 text-sky-700",
-  bidding: "bg-violet-50 text-violet-700",
-  award: "bg-emerald-50 text-emerald-700",
-  on_hold: "bg-amber-50 text-amber-700",
-  completed: "bg-emerald-50 text-emerald-700",
-  cancelled: "bg-slate-100 text-slate-700",
-  open: "bg-secondary-container text-on-secondary-container",
-  won: "bg-emerald-50 text-emerald-700",
-  lost: "bg-error-container text-on-error-container",
+  design: "bg-[#1f2d5a] text-[#76c4ff]",
+  bidding: "bg-[#26225a] text-[#c8a6ff]",
+  award: "bg-[#11372f] text-[#6bffc1]",
+  on_hold: "bg-[#3a2a1a] text-[#ffc074]",
+  completed: "bg-[#11372f] text-[#6bffc1]",
+  cancelled: "bg-[#2a2a2a] text-[#9fb0d2]",
+  open: "bg-[#1f3159] text-[#9fb0d2]",
+  won: "bg-[#11372f] text-[#6bffc1]",
+  lost: "bg-[#3a1f2a] text-[#ffb7c4]",
 };
+
+const OWNER_BADGE_CLASSES = [
+  "bg-[#1a2b45] text-[#8fd3ff]",
+  "bg-[#11372f] text-[#6bffc1]",
+  "bg-[#3a2a1a] text-[#ffc074]",
+  "bg-[#26225a] text-[#c8a6ff]",
+  "bg-[#3a1f2a] text-[#ffb7c4]",
+  "bg-[#1a3d4a] text-[#76e4ff]",
+  "bg-[#273a1a] text-[#c4ff76]",
+  "bg-[#3a2a1a] text-[#ffc874]",
+];
+
+function ownerBadgeClass(ownerName?: string) {
+  if (!ownerName) return "bg-[#2a2a2a] text-[#9fb0d2]";
+  let hash = 0;
+  for (let i = 0; i < ownerName.length; i += 1) {
+    hash = (hash * 31 + ownerName.charCodeAt(i)) >>> 0;
+  }
+  return OWNER_BADGE_CLASSES[hash % OWNER_BADGE_CLASSES.length];
+}
 
 function formatProjectStatus(status?: string) {
   if (!status) return "Design";
@@ -132,6 +152,7 @@ export default function DealsPage() {
   const [savingForecast, setSavingForecast] = useState(false);
   const [creatingBoqDealId, setCreatingBoqDealId] = useState<number | null>(null);
   const [projectSearch, setProjectSearch] = useState(() => localStorage.getItem(DEALS_SEARCH_STORAGE_KEY) || "");
+  const [ownerIdFilter, setOwnerIdFilter] = useState<number | null>(null);
 
   const loadReference = async () => {
     try {
@@ -150,7 +171,7 @@ export default function DealsPage() {
   const loadDeals = async () => {
     setLoading(true);
     try {
-      const r = await dealsApi.list();
+      const r = await dealsApi.list(isManager && ownerIdFilter ? { owner_id: ownerIdFilter } : undefined);
       setDeals(r.data || []);
     } catch {
       message.error("Unable to load deals.");
@@ -163,6 +184,11 @@ export default function DealsPage() {
     loadReference();
     loadDeals();
   }, []);
+
+  useEffect(() => {
+    if (!isManager) return;
+    loadDeals();
+  }, [ownerIdFilter]);
 
   const openCreate = () => {
     setEditingDeal(null);
@@ -377,7 +403,10 @@ export default function DealsPage() {
 
   const ownerOptions = useMemo(() => {
     if (!isManager) return [];
-    return owners.map((u) => ({ value: u.id, label: u.full_name }));
+    return owners
+      .filter((u) => u.is_active)
+      .filter((u) => ["sales", "manager"].includes(String(u.role || "").toLowerCase()))
+      .map((u) => ({ value: u.id, label: u.full_name }));
   }, [owners, isManager]);
 
   const projectNameById = useMemo(() => {
@@ -423,16 +452,16 @@ export default function DealsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold font-headline tracking-tight text-slate-900">Sales Funnel</h2>
-          <p className="text-on-surface-variant mt-1">
-            Managing <span className="font-bold text-slate-900">{filteredDeals.filter(d => !["won","lost"].includes(d.deal_cycle_stage)).length}</span> active deals · Pipeline: <span className="font-bold text-slate-900">{fmt(totalPipeline)}</span>
+          <h2 className="text-3xl font-extrabold font-headline tracking-tight text-[#dbe3ff]">Sales Funnel</h2>
+          <p className="text-[#97a6c9] mt-1">
+            Managing <span className="font-bold text-[#dbe3ff]">{filteredDeals.filter(d => !["won","lost"].includes(d.deal_cycle_stage)).length}</span> active deals · Pipeline: <span className="font-bold text-[#dbe3ff]">{fmt(totalPipeline)}</span>
           </p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={loadDeals}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container-low text-on-surface text-sm font-medium hover:bg-surface-container-high transition-colors border border-outline-variant/20"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1a2848] text-[#dbe3ff] text-sm font-medium hover:bg-[#1f3159] transition-colors border border-[#233861]"
           >
             <span className={`material-symbols-outlined text-base ${loading ? "animate-spin" : ""}`}>refresh</span>
             Refresh
@@ -456,8 +485,18 @@ export default function DealsPage() {
           className="max-w-md"
           prefix={<span className="material-symbols-outlined text-base text-slate-400">search</span>}
         />
+        {isManager && (
+          <Select
+            allowClear
+            style={{ minWidth: 220 }}
+            placeholder="Deal Owner: All"
+            value={ownerIdFilter ?? undefined}
+            options={ownerOptions}
+            onChange={(value) => setOwnerIdFilter(value ?? null)}
+          />
+        )}
         {projectSearch.trim() && (
-          <p className="text-xs text-on-surface-variant">
+          <p className="text-xs text-[#97a6c9]">
             Showing {filteredDeals.length} of {deals.length} deals
           </p>
         )}
@@ -474,32 +513,33 @@ export default function DealsPage() {
               <div className="flex items-center justify-between mb-4 px-1">
                 <div className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full ${col.color}`} />
-                  <h3 className="text-xs font-extrabold font-headline uppercase tracking-wider text-slate-900">{col.label}</h3>
-                  <span className="bg-surface-container-high text-[10px] font-bold px-2 py-0.5 rounded-full text-on-surface-variant">
+                  <h3 className="text-xs font-extrabold font-headline uppercase tracking-wider text-[#dbe3ff]">{col.label}</h3>
+                  <span className="bg-[#1f3159] text-[10px] font-bold px-2 py-0.5 rounded-full text-[#9fb0d2]">
                     {colDeals.length}
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-on-surface-variant">{fmt(colValue)}</span>
+                <span className="text-[10px] font-bold text-[#9fb0d2]">{fmt(colValue)}</span>
               </div>
 
               {/* Cards */}
               <div className="space-y-3">
                 {colDeals.length === 0 && (
-                  <div className="h-20 border-2 border-dashed border-outline-variant/40 rounded-xl flex items-center justify-center">
-                    <p className="text-xs text-on-surface-variant">No deals</p>
+                  <div className="h-20 border-2 border-dashed border-[#233861]/40 rounded-xl flex items-center justify-center">
+                    <p className="text-xs text-[#97a6c9]">No deals</p>
                   </div>
                 )}
                 {colDeals.map((deal) => {
                   const openTaskCount = (deal.tasks || []).filter((t: any) => t.status !== "done" && t.status !== "cancelled").length;
-                  const initials = deal.owner_name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) || "?";
+                  const ownerName = deal.owner_name || "Unassigned";
+                  const initials = ownerName.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) || "?";
                   const isWon = col.key === "won";
                   const isLost = col.key === "lost";
 
                   return (
                     <div
                       key={deal.id}
-                      className={`bg-surface-container-lowest p-4 rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_30px_rgba(15,23,42,0.08)] transition-all group ${
-                        isWon ? "border border-emerald-100" : isLost ? "border border-error/10" : ""
+                      className={`bg-[#101d3b] p-4 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all group border border-[#1f3159] ${
+                        isWon ? "" : isLost ? "" : ""
                       }`}
                     >
                       {/* Top row */}
@@ -518,24 +558,24 @@ export default function DealsPage() {
                       </div>
 
                       {/* Title + company */}
-                      <h4 className="font-headline font-bold text-slate-900 text-sm mb-0.5 group-hover:text-on-tertiary-container transition-colors line-clamp-2">
+                      <h4 className="font-headline font-bold text-[#dbe3ff] text-sm mb-0.5 group-hover:text-[#a6d8ff] transition-colors line-clamp-2">
                         {deal.title}
                       </h4>
-                      <p className="text-xs text-on-surface-variant mb-3">{deal.customer_name || "—"}</p>
+                      <p className="text-xs text-[#97a6c9] mb-3">{deal.customer_name || "—"}</p>
 
                       {/* Next action */}
                       {deal.next_action && (
-                        <p className="text-[10px] text-on-surface-variant mb-3 bg-surface-container-low px-2 py-1 rounded line-clamp-1">
+                        <p className="text-[10px] text-[#97a6c9] mb-3 bg-[#1a2848] px-2 py-1 rounded line-clamp-1">
                           <span className="material-symbols-outlined text-[10px] mr-1">bolt</span>
                           {deal.next_action}
                         </p>
                       )}
 
                       {/* Footer */}
-                      <div className="flex justify-between items-center pt-3 border-t border-surface-container-low">
+                      <div className="flex justify-between items-center pt-3 border-t border-[#1f3159]">
                         <div>
-                          <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">Value</p>
-                          <p className="text-sm font-bold text-slate-900">{fmt(Number(deal.expected_value || 0))}</p>
+                          <p className="text-[10px] font-bold text-[#97a6c9] uppercase tracking-tighter">Value</p>
+                          <p className="text-sm font-bold text-[#dbe3ff]">{fmt(Number(deal.expected_value || 0))}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           {openTaskCount > 0 && (
@@ -543,12 +583,12 @@ export default function DealsPage() {
                               {openTaskCount} task{openTaskCount > 1 ? "s" : ""}
                             </span>
                           )}
-                          <div
-                            className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 cursor-default"
-                            title={deal.owner_name}
+                          <span
+                            className={`text-[10px] font-bold px-2 py-1 rounded-full ${ownerBadgeClass(ownerName)}`}
+                            title={ownerName}
                           >
-                            {initials}
-                          </div>
+                            {initials} · {ownerName}
+                          </span>
                         </div>
                       </div>
 
@@ -556,32 +596,32 @@ export default function DealsPage() {
                       <div className="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => openEdit(deal)}
-                          className="flex-1 py-1.5 text-[10px] font-bold bg-surface-container-low hover:bg-primary-container hover:text-white rounded-lg transition-colors"
+                          className="flex-1 py-1.5 text-[10px] font-bold bg-[#1a2848] text-[#dbe3ff] hover:bg-[#8f95ff] hover:text-[#0f154b] rounded-lg transition-colors"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => openTaskModal(deal)}
-                          className="flex-1 py-1.5 text-[10px] font-bold bg-surface-container-low hover:bg-surface-container-high rounded-lg transition-colors"
+                          className="flex-1 py-1.5 text-[10px] font-bold bg-[#1a2848] text-[#dbe3ff] hover:bg-[#1f3159] rounded-lg transition-colors"
                         >
                           Tasks
                         </button>
                         <button
                           onClick={() => openUpdateModal(deal)}
-                          className="flex-1 py-1.5 text-[10px] font-bold bg-surface-container-low hover:bg-tertiary-container hover:text-white rounded-lg transition-colors"
+                          className="flex-1 py-1.5 text-[10px] font-bold bg-[#1a2848] text-[#dbe3ff] hover:bg-[#76c4ff] hover:text-[#0f154b] rounded-lg transition-colors"
                         >
                           Updates
                         </button>
                         <button
                           onClick={() => openForecastModal(deal)}
-                          className="flex-1 py-1.5 text-[10px] font-bold bg-surface-container-low hover:bg-primary-container hover:text-white rounded-lg transition-colors"
+                          className="flex-1 py-1.5 text-[10px] font-bold bg-[#1a2848] text-[#dbe3ff] hover:bg-[#8f95ff] hover:text-[#0f154b] rounded-lg transition-colors"
                         >
                           Forecast
                         </button>
                         <button
                           onClick={() => createBoqFromDeal(deal)}
                           disabled={!deal.project_id || creatingBoqDealId === deal.id}
-                          className="flex-1 py-1.5 text-[10px] font-bold bg-surface-container-low hover:bg-secondary-container hover:text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 py-1.5 text-[10px] font-bold bg-[#1a2848] text-[#dbe3ff] hover:bg-[#6bffc1] hover:text-[#0f154b] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {creatingBoqDealId === deal.id ? "Creating..." : "Create BOQ"}
                         </button>
@@ -766,25 +806,25 @@ export default function DealsPage() {
             {/* Update History */}
             <Card size="small" title="Update History">
               {(updateDeal.activities || []).filter((a: any) => a.action_type === "weekly_update").length === 0 ? (
-                <p className="text-sm text-on-surface-variant text-center py-4">No updates yet. Add the first update above.</p>
+                <p className="text-sm text-[#97a6c9] text-center py-4">No updates yet. Add the first update above.</p>
               ) : (
                 <div className="space-y-3 mt-1">
                   {(updateDeal.activities || [])
                     .filter((a: any) => a.action_type === "weekly_update")
                     .map((a: any) => (
-                      <div key={a.id} className="border border-outline-variant/30 rounded-lg p-3">
+                      <div key={a.id} className="border border-[#233861]/30 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center text-[10px] font-bold text-white">
+                            <div className="w-6 h-6 rounded-full bg-[#8f95ff] flex items-center justify-center text-[10px] font-bold text-[#0f154b]">
                               {(a.creator_name || "?").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}
                             </div>
-                            <span className="text-xs font-semibold text-slate-700">{a.creator_name || "Unknown"}</span>
+                            <span className="text-xs font-semibold text-[#9fb0d2]">{a.creator_name || "Unknown"}</span>
                           </div>
-                          <span className="text-[10px] text-on-surface-variant">
+                          <span className="text-[10px] text-[#97a6c9]">
                             {new Date(a.created_at).toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" })}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-800 whitespace-pre-wrap">{a.note}</p>
+                        <p className="text-sm text-[#c5d0e8] whitespace-pre-wrap">{a.note}</p>
                         {(a.to_stage && a.from_stage !== a.to_stage) && (
                           <div className="flex items-center gap-1 mt-2">
                             <Tag color="default" className="text-[10px]">{a.from_stage}</Tag>
@@ -793,10 +833,10 @@ export default function DealsPage() {
                           </div>
                         )}
                         {a.next_action && (
-                          <div className="mt-2 bg-amber-50 rounded px-2 py-1.5">
-                            <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">Next Action</p>
-                            <p className="text-xs text-amber-900">{a.next_action}</p>
-                            {a.next_action_date && <p className="text-[10px] text-amber-600 mt-0.5">By {a.next_action_date}</p>}
+                          <div className="mt-2 bg-[#3a2a1a] rounded px-2 py-1.5">
+                            <p className="text-[10px] font-bold text-[#ffc074] uppercase tracking-wide">Next Action</p>
+                            <p className="text-xs text-[#ffd9a8]">{a.next_action}</p>
+                            {a.next_action_date && <p className="text-[10px] text-[#ffb74d] mt-0.5">By {a.next_action_date}</p>}
                           </div>
                         )}
                       </div>

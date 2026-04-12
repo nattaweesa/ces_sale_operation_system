@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage:
 #   REPO_URL=git@github.com:owner/repo.git ./scripts/release/vps-deploy-from-git.sh <commit-or-tag> [--no-build]
 
-APP_DIR="${APP_DIR:-/root/ces_sale_operation_system}"
+APP_DIR="${APP_DIR:-/srv/ces_sale_operation_system}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env.prod}"
 REMOTE_NAME="${REMOTE_NAME:-origin}"

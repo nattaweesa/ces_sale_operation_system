@@ -1,9 +1,10 @@
 from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.database import get_db
+from app.models.deal import Deal
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate, UserOut, UserSelfUpdate, UserChangePassword
 from app.services.auth import hash_password, verify_password, validate_password_strength, get_current_user, require_roles
@@ -152,3 +153,40 @@ async def update_user(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.delete("/{user_id}")
+async def delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    deal_count_result = await db.execute(
+        select(func.count()).select_from(Deal).where(Deal.owner_id == user.id)
+    )
+    deal_count = int(deal_count_result.scalar_one() or 0)
+    if deal_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete user with existing deals ({deal_count}). Deactivate instead.",
+        )
+
+    await db.delete(user)
+    await log_activity(
+        db,
+        current_user.id,
+        "user.delete",
+        resource_type="user",
+        resource_id=user.id,
+        resource_label=user.username,
+    )
+    await db.commit()
+    return {"message": "User deleted successfully"}

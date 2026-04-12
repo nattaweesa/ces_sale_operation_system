@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/root/ces_sale_operation_system}"
+APP_DIR="${APP_DIR:-/srv/ces_sale_operation_system}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env.prod}"
-BACKUP_ROOT="${BACKUP_ROOT:-/root/ces_sale_operation_backups/production}"
+BACKUP_ROOT="${BACKUP_ROOT:-/srv/ces_sale_operation_backups/production}"
 TARGET="${1:-latest}"
 
 if [[ "$TARGET" == "latest" ]]; then

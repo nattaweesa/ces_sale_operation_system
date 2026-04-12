@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/root/ces_sale_operation_system}"
+APP_DIR="${APP_DIR:-/srv/ces_sale_operation_system}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env.prod}"
-NOTIFY_ENV="${NOTIFY_ENV:-/root/backup-scripts/backup-notify.env}"
-STATE_DIR="${STATE_DIR:-/var/run/ces-prod-health}"
+NOTIFY_ENV="${NOTIFY_ENV:-/srv/ces_sale_operation_backups/backup-notify.env}"
+STATE_DIR="${STATE_DIR:-/srv/ces_sale_operation_runtime/health}"
 FAIL_COUNT_FILE="${STATE_DIR}/fail_count"
 ACTION_LOCK_FILE="${STATE_DIR}/last_action"
 LAST_NOTIFY_FILE="${STATE_DIR}/last_notify"

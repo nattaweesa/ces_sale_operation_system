@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/root/ces_sale_operation_system}"
+APP_DIR="${APP_DIR:-/srv/ces_sale_operation_system}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env.prod}"
-BACKUP_ROOT="${BACKUP_ROOT:-/root/ces_sale_operation_backups/production}"
+BACKUP_ROOT="${BACKUP_ROOT:-/srv/ces_sale_operation_backups/production}"
 KEEP_COUNT="${KEEP_COUNT:-3}"
-NOTIFY_ENV="${NOTIFY_ENV:-/root/backup-scripts/backup-notify.env}"
+NOTIFY_ENV="${NOTIFY_ENV:-/srv/ces_sale_operation_backups/backup-notify.env}"
 TS="$(date +%Y%m%d_%H%M%S)"
 BACKUP_DIR="${BACKUP_ROOT}/${TS}"
 

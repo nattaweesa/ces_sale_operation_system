@@ -8,9 +8,9 @@
 set -euo pipefail
 
 ENVIRONMENT="${1:-quick}"
-VPS_USER="root"
-VPS_HOST="187.77.156.215"
-VPS_PATH="/root/ces_sale_operation_system_staging"
+VPS_USER="${VPS_USER:-cesdeploy}"
+VPS_HOST="${VPS_HOST:-187.77.156.215}"
+VPS_PATH="${VPS_PATH:-/srv/ces_sale_operation_system_staging}"
 COMPOSE_FILE="docker-compose.staging.yml"
 ENV_FILE=".env.staging"
 DB_NAME="ces_sale_operation_staging"
@@ -50,6 +50,11 @@ if [[ "$ENVIRONMENT" == "build" ]]; then
         set -e
         cd "$VPS_PATH"
         COMPOSE="docker compose -f $COMPOSE_FILE --env-file $ENV_FILE"
+        if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "   ❌ Refusing deploy on VPS: tracked changes present in $VPS_PATH"
+            git status --short
+            exit 1
+        fi
         echo "   📥 Pulling latest $CURRENT_BRANCH..."
         git fetch origin && git checkout $CURRENT_BRANCH && git pull --ff-only
         echo "   🔨 Building images..."
@@ -74,6 +79,11 @@ else
         set -e
         cd "$VPS_PATH"
         COMPOSE="docker compose -f $COMPOSE_FILE --env-file $ENV_FILE"
+        if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "   ❌ Refusing deploy on VPS: tracked changes present in $VPS_PATH"
+            git status --short
+            exit 1
+        fi
         echo "   📥 Pulling latest $CURRENT_BRANCH..."
         git fetch origin && git checkout $CURRENT_BRANCH && git pull --ff-only
         echo "   🔄 Restarting services..."
@@ -112,7 +122,7 @@ if [[ $BUILD_STATUS -ge 3 ]]; then
     echo "  🔧 Backend API: http://187.77.156.215:8000 (Production)"
 else
     echo "⚠️  Warning: Some services may not be running. Check logs:"
-    echo "  ssh root@187.77.156.215"
+    echo "  ssh $VPS_USER@$VPS_HOST"
     echo "  cd $VPS_PATH"
     echo "  docker compose -f $COMPOSE_FILE --env-file $ENV_FILE logs -f"
     exit 1

@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { Table, Button, Modal, Form, Input, Select, Tag, Space, Typography, message } from "antd";
-import { PlusOutlined, EditOutlined } from "@ant-design/icons";
+import { Table, Button, Modal, Form, Input, Select, Tag, Space, Typography, Popconfirm, message } from "antd";
+import { PlusOutlined, EditOutlined, DeleteOutlined, StopOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import { usersApi } from "../api";
+import { useAuthStore } from "../store/authStore";
 
 const ROLE_COLORS: Record<string, string> = { admin: "red", manager: "blue", sales_admin: "purple", sales: "green", sale_upload: "orange" };
 
 export default function UsersPage() {
+  const currentUser = useAuthStore((s) => s.user);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [savingActionUserId, setSavingActionUserId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<any>(null);
   const [form] = Form.useForm();
@@ -47,6 +50,32 @@ export default function UsersPage() {
     }
   };
 
+  const toggleActive = async (record: any) => {
+    try {
+      setSavingActionUserId(record.id);
+      await usersApi.update(record.id, { is_active: !record.is_active });
+      message.success(record.is_active ? "User deactivated" : "User activated");
+      await load();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || "Failed to update user status");
+    } finally {
+      setSavingActionUserId(null);
+    }
+  };
+
+  const deleteUser = async (record: any) => {
+    try {
+      setSavingActionUserId(record.id);
+      await usersApi.delete(record.id);
+      message.success("User deleted");
+      await load();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || "Failed to delete user");
+    } finally {
+      setSavingActionUserId(null);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
@@ -61,7 +90,43 @@ export default function UsersPage() {
           { title: "Email", dataIndex: "email" },
           { title: "Role", dataIndex: "role", render: (v: string) => <Tag color={ROLE_COLORS[v]}>{v.toUpperCase()}</Tag> },
           { title: "Active", dataIndex: "is_active", render: (v: boolean) => v ? <Tag color="green">Active</Tag> : <Tag>Inactive</Tag> },
-          { title: "", width: 60, render: (_: any, r: any) => <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} /> },
+          {
+            title: "Actions",
+            width: 210,
+            render: (_: any, r: any) => {
+              const isSelf = Number(currentUser?.user_id) === Number(r.id);
+              const busy = savingActionUserId === r.id;
+              return (
+                <Space>
+                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+                  <Popconfirm
+                    title={r.is_active ? "Deactivate this user?" : "Activate this user?"}
+                    okText="Yes"
+                    cancelText="Cancel"
+                    onConfirm={() => toggleActive(r)}
+                    disabled={isSelf}
+                  >
+                    <Button
+                      size="small"
+                      icon={r.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
+                      disabled={isSelf || busy}
+                    />
+                  </Popconfirm>
+                  <Popconfirm
+                    title="Delete this user permanently?"
+                    description="This cannot be undone."
+                    okText="Delete"
+                    okButtonProps={{ danger: true }}
+                    cancelText="Cancel"
+                    onConfirm={() => deleteUser(r)}
+                    disabled={isSelf}
+                  >
+                    <Button danger size="small" icon={<DeleteOutlined />} disabled={isSelf || busy} />
+                  </Popconfirm>
+                </Space>
+              );
+            },
+          },
         ]}
       />
       <Modal open={open} title={editRecord ? "Edit User" : "New User"} onOk={handleSave} onCancel={() => setOpen(false)} okText="Save">

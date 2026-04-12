@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { rolePermissionsApi } from "../api";
+import ThemeToggle from "./ThemeToggle";
 
 type NavChild = { key: string; label: string; path: string; icon: string };
 type NavGroup = { key: string; label: string; icon: string; children: NavChild[] };
@@ -204,7 +205,7 @@ export default function AppLayout() {
     : "U";
 
   return (
-    <div className="min-h-screen bg-surface font-body text-on-surface">
+    <div className="min-h-screen bg-[#030a1a] font-body text-on-surface transition-colors duration-300">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -214,14 +215,15 @@ export default function AppLayout() {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 h-screen w-64 bg-slate-50 flex flex-col z-50 transition-transform duration-300 ease-in-out ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+      <aside className={`fixed left-0 top-0 h-screen w-64 border-r border-[#162649] bg-gradient-to-b from-[#081632] to-[#030b1f] flex flex-col z-50 transition-transform duration-300 ease-in-out ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
         {/* Logo */}
-        <div className="px-6 py-5 mb-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-[11px] font-extrabold tracking-wide leading-none">CES</span>
+        <div className="px-6 py-6 mb-3 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#aeb2ff] to-[#7a7ff5] flex items-center justify-center flex-shrink-0 shadow-[0_10px_30px_rgba(55,73,168,0.55)]">
+            <span className="text-[#111a55] text-[11px] font-extrabold tracking-wide leading-none">CES</span>
           </div>
           <div>
-            <h1 className="text-sm font-bold text-slate-900 font-headline leading-tight">CES Sale Operation System</h1>
+            <h1 className="text-sm font-bold text-[#dbe3ff] font-headline leading-tight">CES</h1>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[#92a0c2]">Sale Operation System</p>
           </div>
         </div>
 
@@ -236,8 +238,8 @@ export default function AppLayout() {
                   onClick={() => handleNav(item.path)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
                     active
-                      ? "bg-slate-100 text-slate-900 font-bold border-r-2 border-slate-900"
-                      : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-900"
+                      ? "bg-[#1a2747] text-[#dbe3ff] font-bold border-l-2 border-[#8b92ff]"
+                      : "text-[#98a5c8] hover:bg-[#111e3d] hover:text-[#dbe3ff]"
                   }`}
                 >
                   <span className="material-symbols-outlined text-xl">{item.icon}</span>
@@ -255,8 +257,8 @@ export default function AppLayout() {
                   onClick={() => toggleGroup(item.key)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
                     groupActive
-                      ? "text-slate-900 font-bold"
-                      : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-900"
+                      ? "text-[#dbe3ff] font-bold"
+                      : "text-[#98a5c8] hover:bg-[#111e3d] hover:text-[#dbe3ff]"
                   }`}
                 >
                   <span className="material-symbols-outlined text-xl">{item.icon}</span>
@@ -266,7 +268,7 @@ export default function AppLayout() {
                   </span>
                 </button>
                 {isOpen && (
-                  <div className="ml-4 pl-4 border-l border-slate-200 mt-0.5 space-y-0.5">
+                  <div className="ml-4 pl-4 border-l border-[#22345d] mt-0.5 space-y-0.5">
                     {item.children.map((child) => {
                       const childActive = currentKey === child.key;
                       return (
@@ -275,8 +277,8 @@ export default function AppLayout() {
                           onClick={() => handleNav(child.path)}
                           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors duration-150 ${
                             childActive
-                              ? "bg-slate-100 text-slate-900 font-semibold"
-                              : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-900"
+                              ? "bg-[#1a2747] text-[#dbe3ff] font-semibold"
+                              : "text-[#98a5c8] hover:bg-[#111e3d] hover:text-[#dbe3ff]"
                           }`}
                         >
                           <span className="material-symbols-outlined text-base">{child.icon}</span>
@@ -292,75 +294,97 @@ export default function AppLayout() {
         </nav>
 
         {/* Bottom */}
-        <div className="px-4 pt-3 pb-5 border-t border-slate-200 space-y-0.5">
+        <div className="px-4 pt-3 pb-5 border-t border-[#17284c] space-y-0.5">
+          <div className="px-4 pb-3">
+            <ThemeToggle compact />
+          </div>
+          <div className="px-4 pb-2">
+            <button className="w-full rounded-xl bg-gradient-to-r from-[#8d93ff] to-[#6a71ed] py-2.5 text-[#0e154a] font-semibold text-sm shadow-[0_10px_25px_rgba(116,129,255,0.35)]">
+              + New Project
+            </button>
+          </div>
           <button
             onClick={() => { logout(); navigate("/login"); }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-slate-500 hover:bg-slate-200/50 hover:text-slate-900 transition-colors duration-150"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-[#98a5c8] hover:bg-[#111e3d] hover:text-[#dbe3ff] transition-colors duration-150"
           >
             <span className="material-symbols-outlined text-xl">logout</span>
             <span className="font-headline tracking-tight">Logout</span>
           </button>
           <div className="flex items-center gap-3 px-4 py-2.5 mt-1">
-            <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#2a3f73] flex items-center justify-center text-[#dbe3ff] text-xs font-bold flex-shrink-0">
               {initials}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate">{user?.full_name}</p>
-              <p className="text-[10px] text-slate-500 capitalize">{user?.role?.replace("_", " ")}</p>
+              <p className="text-sm font-semibold text-[#dbe3ff] truncate">{user?.full_name}</p>
+              <p className="text-[10px] text-[#98a5c8] capitalize">{user?.role?.replace("_", " ")}</p>
             </div>
           </div>
         </div>
       </aside>
 
       {/* Top Header */}
-      <header className="fixed top-0 left-0 right-0 lg:left-64 h-16 z-40 bg-white/80 backdrop-blur-md shadow-sm flex items-center justify-between px-4 lg:px-8">
-        <div className="flex items-center gap-3 flex-1 max-w-md">
+      <header className="fixed top-0 left-0 right-0 lg:left-64 h-16 z-40 border-b border-[#17284c] bg-[#091735]/80 backdrop-blur-xl flex items-center justify-between px-4 lg:px-8">
+        <div className="flex items-center gap-4">
           {/* Hamburger — mobile only */}
           <button
-            className="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+            className="lg:hidden p-2 rounded-lg text-[#98a5c8] hover:bg-[#111e3d] transition-colors"
             onClick={() => setSidebarOpen((v) => !v)}
             aria-label="Toggle menu"
           >
             <span className="material-symbols-outlined text-2xl">{sidebarOpen ? "close" : "menu"}</span>
           </button>
-          <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
-            <input
-              className="w-full bg-surface-container-low border-0 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-tertiary-fixed transition-all outline-none"
-              placeholder="Search..."
-            />
+          <div>
+            <p className="text-[#dbe3ff] font-semibold font-headline text-lg leading-none">Project Atrium</p>
           </div>
+          <nav className="hidden md:flex items-center gap-6 text-sm">
+            <button className="text-[#dbe3ff] border-b border-[#a2a8ff] pb-1">Overview</button>
+            <button className="text-[#98a5c8] hover:text-[#dbe3ff]">Timeline</button>
+            <button className="text-[#98a5c8] hover:text-[#dbe3ff]">Milestones</button>
+          </nav>
         </div>
         <div className="flex items-center gap-3">
+          <div className="relative hidden md:block">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#8e9bbc] text-lg">search</span>
+            <input
+              className="w-[280px] bg-[#020812] border border-[#1f3158] rounded-full pl-10 pr-4 py-2 text-sm text-[#dbe3ff] focus:ring-2 focus:ring-[#8d93ff] transition-all outline-none"
+              placeholder="Search parameters..."
+            />
+          </div>
+          <ThemeToggle compact />
           <button
-            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors"
+            className="p-2 text-[#98a5c8] hover:text-[#dbe3ff] hover:bg-[#111e3d] rounded-lg transition-colors"
             onClick={() => setSidebarOpen(false)}
           >
             <span className="material-symbols-outlined">notifications</span>
           </button>
-          <div className="h-6 w-px bg-outline-variant"></div>
+          <button
+            className="p-2 text-[#98a5c8] hover:text-[#dbe3ff] hover:bg-[#111e3d] rounded-lg transition-colors"
+          >
+            <span className="material-symbols-outlined">help</span>
+          </button>
+          <div className="h-6 w-px bg-[#243a67]"></div>
           <div ref={profileMenuRef} className="relative">
             <button
               onClick={() => { setSidebarOpen(false); setProfileMenuOpen((v) => !v); }}
-              className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-surface-container-low transition-colors"
+              className="flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-[#111e3d] transition-colors"
             >
-              <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-white text-xs font-bold">
+              <div className="w-8 h-8 rounded-full bg-[#2a3f73] flex items-center justify-center text-[#dbe3ff] text-xs font-bold">
                 {initials}
               </div>
-              <span className="text-sm font-medium text-slate-900 hidden md:block">{user?.full_name}</span>
-              <span className="material-symbols-outlined text-base text-slate-500">expand_more</span>
+              <span className="text-sm font-medium text-[#dbe3ff] hidden md:block">{user?.full_name}</span>
+              <span className="material-symbols-outlined text-base text-[#98a5c8]">expand_more</span>
             </button>
             {profileMenuOpen && (
-              <div className="absolute right-0 top-11 w-44 rounded-lg border border-slate-200 bg-white shadow-lg z-50">
+              <div className="absolute right-0 top-11 w-44 rounded-xl border border-[#1d3159] bg-[#091632] shadow-2xl z-50 overflow-hidden">
                 <button
                   onClick={goProfile}
-                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  className="w-full text-left px-3 py-2 text-sm text-[#dbe3ff] hover:bg-[#111e3d]"
                 >
                   My Profile
                 </button>
                 <button
                   onClick={doLogout}
-                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="w-full text-left px-3 py-2 text-sm text-[#ff8ba1] hover:bg-[#2a1320]"
                 >
                   Logout
                 </button>
@@ -371,7 +395,7 @@ export default function AppLayout() {
       </header>
 
       {/* Main Content */}
-      <main className="ml-0 lg:ml-64 pt-16 min-h-screen">
+      <main className="ml-0 lg:ml-64 pt-16 min-h-screen bg-[radial-gradient(circle_at_20%_0%,rgba(88,106,200,0.08),transparent_35%)]">
         <div className="p-6 max-w-[1600px] mx-auto">
           <Outlet />
         </div>

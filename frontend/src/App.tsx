@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { ConfigProvider, theme, message } from "antd";
+import { ConfigProvider, message } from "antd";
 import { useAuthStore } from "./store/authStore";
 import AppLayout from "./components/AppLayout";
 import LoginPage from "./pages/LoginPage";
@@ -30,6 +30,8 @@ import QuotationV2Page from "./pages/QuotationV2Page";
 import V2OverviewPage from "./pages/V2OverviewPage";
 import AIChatPage from "./pages/AIChatPage";
 import AdminAISettingsPage from "./pages/AdminAISettingsPage";
+import { useThemeStore } from "./store/themeStore";
+import { getAppThemeDefinition } from "./theme/themes";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -154,8 +156,16 @@ function SessionManager() {
 }
 
 export default function App() {
+  const themeName = useThemeStore((s) => s.themeName);
+  const appTheme = getAppThemeDefinition(themeName);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = themeName;
+    document.documentElement.classList.toggle("dark", appTheme.mode === "dark");
+  }, [themeName, appTheme.mode]);
+
   return (
-    <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
+    <ConfigProvider theme={appTheme.antTheme}>
       <BrowserRouter>
         <SessionManager />
         <Routes>

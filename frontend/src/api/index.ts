@@ -196,6 +196,7 @@ export const usersApi = {
   list: () => api.get("/users"),
   create: (data: unknown) => api.post("/users", data),
   update: (id: number, data: unknown) => api.put(`/users/${id}`, data),
+  delete: (id: number) => api.delete(`/users/${id}`),
   me: () => api.get("/users/me"),
   updateMe: (data: { full_name?: string; email?: string }) => api.put("/users/me", data),
   changeMyPassword: (data: { current_password: string; new_password: string }) => api.put("/users/me/password", data),
@@ -223,7 +224,7 @@ export const dealsApi = {
   updateTask: (id: number, taskId: number, data: unknown) => api.put(`/deals/${id}/tasks/${taskId}`, data),
   addActivity: (id: number, data: unknown) => api.post(`/deals/${id}/activities`, data),
   dashboardMy: () => api.get("/deals/dashboard/my"),
-  dashboardManager: () => api.get("/deals/dashboard/manager"),
+  dashboardManager: (params?: { owner_id?: number }) => api.get("/deals/dashboard/manager", { params }),
   reviewReportManager: () => api.get("/deals/review-report/manager"),
 };
 
