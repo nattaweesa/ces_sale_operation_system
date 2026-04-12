@@ -324,11 +324,6 @@ export default function AppLayout() {
           <div className="px-4 pb-3">
             <ThemeToggle compact />
           </div>
-          <div className="px-4 pb-2">
-            <button className={`w-full rounded-xl py-2.5 text-sm font-semibold ${isAtrium ? "bg-gradient-to-r from-[#8d93ff] to-[#6a71ed] text-[#0e154a] shadow-[0_10px_25px_rgba(116,129,255,0.35)]" : "bg-[rgb(var(--primary))] text-[rgb(var(--on-primary))] shadow-[0_10px_25px_rgba(19,27,46,0.18)]"}`}>
-              + New Project
-            </button>
-          </div>
           <button
             onClick={() => { logout(); navigate("/login"); }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors duration-150 ${mutedTextClass} ${hoverShellClass} hover:text-[rgb(var(--on-surface))]`}
