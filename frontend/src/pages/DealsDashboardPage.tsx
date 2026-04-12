@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Select } from "antd";
 import { dealsApi, departmentsApi, usersApi } from "../api";
 import { useAuthStore } from "../store/authStore";
 import { formatTHBCompact } from "../utils/currency";
@@ -15,9 +16,8 @@ export default function DealsDashboardPage() {
   const [data, setData] = useState<any>(null);
   const [ownerIdFilter, setOwnerIdFilter] = useState<number | null>(null);
   const [departmentIdFilter, setDepartmentIdFilter] = useState<number | null>(null);
-  const [ownerOptions, setOwnerOptions] = useState<Array<{ owner_id: number; owner_name: string }>>([]);
+  const [ownerOptions, setOwnerOptions] = useState<Array<{ value: number; label: string }>>([]);
   const [departmentOptions, setDepartmentOptions] = useState<Array<{ id: number; name: string }>>([]);
-  const [allowedOwnerIds, setAllowedOwnerIds] = useState<number[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,6 +38,20 @@ export default function DealsDashboardPage() {
         }
       }
 
+      if (isManager && ownerOptions.length === 0) {
+        try {
+          const usersRes = await usersApi.list();
+          const opts = (usersRes.data || [])
+            .filter((u: any) => !!u.is_active)
+            .filter((u: any) => ["sales", "manager"].includes(String(u.role || "").toLowerCase()))
+            .map((u: any) => ({ value: Number(u.id), label: String(u.full_name || `User ${u.id}`) }))
+            .filter((u: { value: number }) => Number.isFinite(u.value));
+          setOwnerOptions(opts);
+        } catch {
+          setOwnerOptions([]);
+        }
+      }
+
       const r = isManager
         ? await dealsApi.dashboardManager({
           ...(ownerIdFilter ? { owner_id: ownerIdFilter } : {}),
@@ -45,29 +59,6 @@ export default function DealsDashboardPage() {
         })
         : await dealsApi.dashboardMy();
       setData(r.data);
-
-      if (isManager && Array.isArray(r.data?.owner_summary)) {
-        let ownerIds = allowedOwnerIds;
-        if (!ownerIds) {
-          try {
-            const usersRes = await usersApi.list();
-            ownerIds = (usersRes.data || [])
-              .filter((u: any) => ["sales", "manager"].includes(String(u.role || "").toLowerCase()))
-              .map((u: any) => Number(u.id))
-              .filter((id: number) => Number.isFinite(id));
-          } catch {
-            ownerIds = [];
-          }
-          setAllowedOwnerIds(ownerIds);
-        }
-
-        const options = r.data.owner_summary
-          .filter((row: any) => (ownerIds || []).includes(Number(row.owner_id)))
-          .map((row: any) => ({ owner_id: Number(row.owner_id), owner_name: String(row.owner_name || `User ${row.owner_id}`) }))
-          .filter((row: { owner_id: number }) => Number.isFinite(row.owner_id));
-
-        setOwnerOptions(options);
-      }
     } catch {
       setError("Unable to load dashboard data.");
     } finally {
@@ -142,36 +133,24 @@ export default function DealsDashboardPage() {
           {isManager && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-[#97a6c9] uppercase tracking-wide">Deal Owner</label>
-              <select
-                className="dashboard-filter-select px-3 py-2 rounded-lg border border-[#233861] bg-[#0f1d3b] text-[#dbe3ff] text-sm min-w-[220px]"
+              <Select
+                style={{ minWidth: 220 }}
                 value={ownerIdFilter ?? "all"}
-                onChange={(e) => setOwnerIdFilter(e.target.value === "all" ? null : Number(e.target.value))}
-              >
-                <option value="all">All owners</option>
-                {ownerOptions.map((owner) => (
-                  <option key={owner.owner_id} value={owner.owner_id}>
-                    {owner.owner_name}
-                  </option>
-                ))}
-              </select>
+                options={[{ value: "all", label: "All Owners" }, ...ownerOptions]}
+                onChange={(value) => setOwnerIdFilter(value === "all" ? null : Number(value))}
+              />
             </div>
           )}
 
           {canFilterDepartment && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-[#97a6c9] uppercase tracking-wide">Departments</label>
-              <select
-                className="dashboard-filter-select px-3 py-2 rounded-lg border border-[#233861] bg-[#0f1d3b] text-[#dbe3ff] text-sm min-w-[220px]"
+              <Select
+                style={{ minWidth: 220 }}
                 value={departmentIdFilter ?? "all"}
-                onChange={(e) => setDepartmentIdFilter(e.target.value === "all" ? null : Number(e.target.value))}
-              >
-                <option value="all">All departments</option>
-                {departmentOptions.map((dep) => (
-                  <option key={dep.id} value={dep.id}>
-                    {dep.name}
-                  </option>
-                ))}
-              </select>
+                options={[{ value: "all", label: "All Departments" }, ...departmentOptions.map((dep) => ({ value: dep.id, label: dep.name }))]}
+                onChange={(value) => setDepartmentIdFilter(value === "all" ? null : Number(value))}
+              />
             </div>
           )}
 
