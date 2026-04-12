@@ -33,12 +33,18 @@ export default function UsersPage() {
 
   const openCreate = () => { setEditRecord(null); form.resetFields(); setOpen(true); };
   const openEdit = (r: any) => {
+    const departmentIds = (r.departments || []).map((dep: any) => Number(dep.id)).filter((id: number) => Number.isFinite(id));
+    const activeDepartmentId = r.active_department_id ?? undefined;
+    if (activeDepartmentId != null && !departmentIds.includes(Number(activeDepartmentId))) {
+      departmentIds.push(Number(activeDepartmentId));
+    }
+
     setEditRecord(r);
     form.setFieldsValue({
       ...r,
       password: "",
-      department_ids: (r.departments || []).map((dep: any) => Number(dep.id)).filter((id: number) => Number.isFinite(id)),
-      active_department_id: r.active_department_id ?? undefined,
+      department_ids: departmentIds,
+      active_department_id: activeDepartmentId,
     });
     setOpen(true);
   };
@@ -49,6 +55,9 @@ export default function UsersPage() {
       delete v.confirm_password;
       if (!Array.isArray(v.department_ids)) {
         v.department_ids = [];
+      }
+      if (v.active_department_id != null && !v.department_ids.includes(v.active_department_id)) {
+        v.department_ids = [...v.department_ids, v.active_department_id];
       }
       if (!v.password) delete v.password;
       if (editRecord) {
