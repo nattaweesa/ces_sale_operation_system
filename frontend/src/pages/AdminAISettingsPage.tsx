@@ -51,10 +51,13 @@ export default function AdminAISettingsPage() {
   const onSave = async (values: FormValues) => {
     setSaving(true);
     try {
+      const normalizedApiKey = values.api_key?.trim() || "";
+      const shouldClearApiKey = !!values.clear_api_key && !normalizedApiKey;
+
       await aiSettingsApi.update({
         model: values.model.trim(),
-        api_key: values.api_key?.trim() || undefined,
-        clear_api_key: !!values.clear_api_key,
+        api_key: normalizedApiKey || undefined,
+        clear_api_key: shouldClearApiKey,
       });
       message.success("บันทึก AI Settings สำเร็จ");
       await load();
@@ -102,7 +105,16 @@ export default function AdminAISettingsPage() {
             <Text type="secondary" style={{ fontSize: 12 }}>{updatedMeta}</Text>
           </div>
 
-          <Form form={form} layout="vertical" onFinish={onSave}>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={onSave}
+            onValuesChange={(changedValues, allValues) => {
+              if (typeof changedValues.api_key === "string" && changedValues.api_key.trim() && allValues.clear_api_key) {
+                form.setFieldValue("clear_api_key", false);
+              }
+            }}
+          >
             <Form.Item
               label="Model"
               name="model"
