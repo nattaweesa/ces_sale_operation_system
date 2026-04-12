@@ -328,7 +328,11 @@ async def list_monthly_forecasts(
     rows = await db.execute(
         select(DealForecastMonthly)
         .where(DealForecastMonthly.deal_id == deal_id)
-        .order_by(DealForecastMonthly.forecast_year.asc(), DealForecastMonthly.forecast_month.asc())
+        .order_by(
+            DealForecastMonthly.forecast_year.asc(),
+            DealForecastMonthly.forecast_month.asc(),
+            DealForecastMonthly.product_system_type_id.asc().nullsfirst(),
+        )
     )
     return rows.scalars().all()
 
@@ -346,13 +350,17 @@ async def replace_monthly_forecasts(
     if not await can_user(db, current_user, "deals.view_all"):
         _assert_access(current_user, deal)
 
-    seen: set[tuple[int, int]] = set()
+    seen: set[tuple[int, int, int]] = set()
     for row in payload.items:
-        key = (row.forecast_year, row.forecast_month)
+        product_system_type_id = int(row.product_system_type_id) if row.product_system_type_id else 0
+        key = (row.forecast_year, row.forecast_month, product_system_type_id)
         if key in seen:
             raise HTTPException(
                 status_code=400,
-                detail=f"Duplicate monthly forecast for year={row.forecast_year}, month={row.forecast_month}",
+                detail=(
+                    f"Duplicate monthly forecast for year={row.forecast_year}, "
+                    f"month={row.forecast_month}, product_system_type_id={product_system_type_id or 'null'}"
+                ),
             )
         seen.add(key)
 
@@ -360,12 +368,16 @@ async def replace_monthly_forecasts(
         sa.delete(DealForecastMonthly).where(DealForecastMonthly.deal_id == deal_id)
     )
 
-    for row in sorted(payload.items, key=lambda item: (item.forecast_year, item.forecast_month)):
+    for row in sorted(
+        payload.items,
+        key=lambda item: (item.forecast_year, item.forecast_month, int(item.product_system_type_id or 0)),
+    ):
         amount = Decimal(str(row.amount or 0))
         win_pct = Decimal(str(row.win_pct or 0))
         db.add(
             DealForecastMonthly(
                 deal_id=deal_id,
+                product_system_type_id=row.product_system_type_id,
                 forecast_year=row.forecast_year,
                 forecast_month=row.forecast_month,
                 amount=amount,
@@ -379,7 +391,11 @@ async def replace_monthly_forecasts(
     rows = await db.execute(
         select(DealForecastMonthly)
         .where(DealForecastMonthly.deal_id == deal_id)
-        .order_by(DealForecastMonthly.forecast_year.asc(), DealForecastMonthly.forecast_month.asc())
+        .order_by(
+            DealForecastMonthly.forecast_year.asc(),
+            DealForecastMonthly.forecast_month.asc(),
+            DealForecastMonthly.product_system_type_id.asc().nullsfirst(),
+        )
     )
     return rows.scalars().all()
 

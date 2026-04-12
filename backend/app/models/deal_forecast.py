@@ -12,11 +12,22 @@ from app.database import Base
 class DealForecastMonthly(Base):
     __tablename__ = "deal_forecast_monthly"
     __table_args__ = (
-        UniqueConstraint("deal_id", "forecast_year", "forecast_month", name="uq_deal_forecast_monthly_deal_year_month"),
+        UniqueConstraint(
+            "deal_id",
+            "forecast_year",
+            "forecast_month",
+            "product_system_type_id",
+            name="uq_deal_forecast_monthly_deal_year_month_product",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     deal_id: Mapped[int] = mapped_column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    product_system_type_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("deal_product_system_types.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     forecast_year: Mapped[int] = mapped_column(Integer, nullable=False)
     forecast_month: Mapped[int] = mapped_column(Integer, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)

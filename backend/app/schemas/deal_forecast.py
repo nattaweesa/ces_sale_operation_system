@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class DealForecastMonthlyItemIn(BaseModel):
+    product_system_type_id: Optional[int] = None
     forecast_year: int = Field(ge=2000, le=2100)
     forecast_month: int = Field(ge=1, le=12)
     amount: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
@@ -22,6 +23,7 @@ class DealForecastMonthlyBulkIn(BaseModel):
 class DealForecastMonthlyOut(BaseModel):
     id: int
     deal_id: int
+    product_system_type_id: Optional[int] = None
     forecast_year: int
     forecast_month: int
     amount: Decimal

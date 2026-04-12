@@ -360,6 +360,7 @@ export default function DealsPage() {
       const res = await dealsApi.listMonthlyForecasts(deal.id);
       const rows = (res.data || []).map((r: any) => ({
         key: String(r.id),
+        product_system_type_id: r.product_system_type_id ? Number(r.product_system_type_id) : null,
         forecast_year: Number(r.forecast_year),
         forecast_month: Number(r.forecast_month),
         amount: Number(r.amount || 0),
@@ -381,6 +382,7 @@ export default function DealsPage() {
       ...prev,
       {
         key: `new-${Date.now()}-${Math.random()}`,
+        product_system_type_id: Number(forecastDeal?.product_system_type_ids?.[0] || 0) || null,
         forecast_year: today.year(),
         forecast_month: today.month() + 1,
         amount: 0,
@@ -402,6 +404,7 @@ export default function DealsPage() {
     if (!forecastDeal) return;
     const items = forecastRows
       .map((r) => ({
+        product_system_type_id: r.product_system_type_id ? Number(r.product_system_type_id) : null,
         forecast_year: Number(r.forecast_year),
         forecast_month: Number(r.forecast_month),
         amount: Number(r.amount || 0),
@@ -412,7 +415,7 @@ export default function DealsPage() {
 
     const seen = new Set<string>();
     for (const item of items) {
-      const key = `${item.forecast_year}-${item.forecast_month}`;
+      const key = `${item.forecast_year}-${item.forecast_month}-${item.product_system_type_id ?? 0}`;
       if (seen.has(key)) {
         message.error(`Duplicate row for ${key}`);
         return;
@@ -1066,9 +1069,9 @@ export default function DealsPage() {
         <Space direction="vertical" style={{ width: "100%", marginTop: 12 }} size={10}>
           <div className="flex items-center justify-between">
             <p className="text-xs text-on-surface-variant mb-0">
-              Plan expected revenue by month. Net = Amount x Win %.
+              Plan expected revenue by month and product/system type. Net = Amount x Win %.
             </p>
-            <Button size="small" type="dashed" onClick={addForecastRow}>Add Month</Button>
+            <Button size="small" type="dashed" onClick={addForecastRow}>Add Row</Button>
           </div>
 
           <Table
@@ -1079,6 +1082,19 @@ export default function DealsPage() {
             pagination={false}
             scroll={{ y: 360 }}
             columns={[
+              {
+                title: "Product / System",
+                width: 210,
+                render: (_: any, row: any) => (
+                  <Select
+                    allowClear
+                    placeholder="General"
+                    value={row.product_system_type_id ?? undefined}
+                    options={productSystemTypeOptions}
+                    onChange={(v) => updateForecastRow(row.key, { product_system_type_id: v ? Number(v) : null })}
+                  />
+                ),
+              },
               {
                 title: "Year",
                 width: 100,
