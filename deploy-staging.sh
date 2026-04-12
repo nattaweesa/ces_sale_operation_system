@@ -70,7 +70,7 @@ if [[ "$ENVIRONMENT" == "build" ]]; then
             docker exec "\$BACKEND_CONTAINER" alembic stamp head
         fi
         echo "   🗃️  Running database migrations..."
-        docker exec "\$BACKEND_CONTAINER" alembic upgrade head
+        docker exec "\$BACKEND_CONTAINER" alembic upgrade heads
         echo "   ✅ Staging deployment complete"
 EOF
 else
@@ -97,7 +97,7 @@ else
             docker exec "\$BACKEND_CONTAINER" alembic stamp head
         fi
         echo "   🗃️  Running database migrations..."
-        docker exec "\$BACKEND_CONTAINER" alembic upgrade head
+        docker exec "\$BACKEND_CONTAINER" alembic upgrade heads
         echo "   ✅ Staging deployment complete"
 EOF
 fi

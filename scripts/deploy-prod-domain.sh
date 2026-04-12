@@ -97,7 +97,7 @@ if [[ -z "\$BACKEND_CONTAINER" ]]; then
   exit 1
 fi
 
-docker exec "\$BACKEND_CONTAINER" alembic upgrade head
+docker exec "\$BACKEND_CONTAINER" alembic upgrade heads
 curl -fsS http://localhost:8000/health >/dev/null
 EOF
 
