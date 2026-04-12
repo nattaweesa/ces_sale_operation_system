@@ -76,9 +76,42 @@ export default function AIChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyMeta, setHistoryMeta] = useState<{ max_messages: number; retention_days: number } | null>(null);
   const [idCounter, setIdCounter] = useState(1);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadHistory = async () => {
+      setHistoryLoading(true);
+      try {
+        const res = await aiChatApi.history();
+        if (!mounted) return;
+        const items = (res.data.messages || []).map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          timestamp: new Date(m.created_at),
+        }));
+        setMessages(items);
+        setIdCounter((items[items.length - 1]?.id || 0) + 1);
+        setHistoryMeta({
+          max_messages: res.data.max_messages,
+          retention_days: res.data.retention_days,
+        });
+      } catch {
+        // keep empty state when load fails
+      } finally {
+        if (mounted) setHistoryLoading(false);
+      }
+    };
+    loadHistory();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,7 +120,7 @@ export default function AIChatPage() {
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || loading) return;
+      if (!trimmed || loading || historyLoading) return;
 
       const userMsg: Message = {
         id: idCounter,
@@ -143,7 +176,7 @@ export default function AIChatPage() {
   };
 
   const clearChat = () => {
-    setMessages([]);
+    aiChatApi.clearHistory().finally(() => setMessages([]));
   };
 
   return (
@@ -169,7 +202,13 @@ export default function AIChatPage() {
 
       {/* Chat area */}
       <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", display: "flex", flexDirection: "column", gap: 12 }}>
-        {messages.length === 0 && !loading && (
+        {historyLoading && (
+          <div style={{ display: "flex", justifyContent: "center", paddingTop: 32 }}>
+            <Spin size="small" />
+          </div>
+        )}
+
+        {messages.length === 0 && !loading && !historyLoading && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: 20, padding: "32px 0" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <RobotOutlined style={{ color: "#fff", fontSize: 32 }} />
@@ -273,20 +312,20 @@ export default function AIChatPage() {
             placeholder="พิมพ์คำถามเกี่ยวกับ Deal, Pipeline, CES Stage... (Enter เพื่อส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
             autoSize={{ minRows: 1, maxRows: 5 }}
             style={{ resize: "none", flex: 1, borderRadius: 12 }}
-            disabled={loading}
+            disabled={loading || historyLoading}
           />
           <Button
             type="primary"
             icon={<SendOutlined />}
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || historyLoading}
             style={{ borderRadius: 12, height: 40, paddingLeft: 16, paddingRight: 16 }}
           >
             ส่ง
           </Button>
         </div>
         <Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 6, paddingLeft: 4 }}>
-          AI ตอบเฉพาะข้อมูลในระบบ CES เท่านั้น • ข้อมูล real-time จากฐานข้อมูล
+          AI ตอบจากข้อมูลระบบ + AI Knowledge • เก็บประวัติสูงสุด {historyMeta?.max_messages || 100} ข้อความ • อายุข้อมูล {historyMeta?.retention_days || 30} วัน
         </Text>
       </div>
     </div>

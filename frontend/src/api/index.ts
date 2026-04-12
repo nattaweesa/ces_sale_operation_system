@@ -14,6 +14,20 @@ export interface AIChatResponse {
   response: string;
 }
 
+export interface AIChatHistoryMessage {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface AIChatHistoryOut {
+  conversation_id: number;
+  max_messages: number;
+  retention_days: number;
+  messages: AIChatHistoryMessage[];
+}
+
 export interface AISettingsOut {
   provider: string;
   model: string;
@@ -57,6 +71,8 @@ export interface AIKnowledgeUploadOut {
 
 export const aiChatApi = {
   query: (data: AIChatRequest) => api.post<AIChatResponse>("/ai-chat/query", data),
+  history: () => api.get<AIChatHistoryOut>("/ai-chat/history"),
+  clearHistory: () => api.delete("/ai-chat/history"),
 };
 
 export const aiSettingsApi = {

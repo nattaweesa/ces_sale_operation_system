@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from decimal import Decimal
 import httpx
@@ -6,9 +7,10 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 
 from app.database import get_db
+from app.models.ai_chat_history import AIChatConversation, AIChatMessage
 from app.models.deal import Deal
 from app.models.ai_knowledge import AIKnowledgeChunk, AIKnowledgeDocument
 from app.models.user import User
@@ -18,6 +20,8 @@ from app.services.auth import require_roles
 router = APIRouter(prefix="/ai-chat", tags=["ai-chat"])
 
 MINIMAX_URL = "https://api.minimaxi.chat/v1/text/chatcompletion_v2"
+MAX_MESSAGES_PER_CONVERSATION = 100
+RETENTION_DAYS = 30
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -34,6 +38,20 @@ class AIChatRequest(BaseModel):
 
 class AIChatResponse(BaseModel):
     response: str
+
+
+class ChatHistoryMessageOut(BaseModel):
+    id: int
+    role: str
+    content: str
+    created_at: str
+
+
+class ChatHistoryOut(BaseModel):
+    conversation_id: int
+    max_messages: int
+    retention_days: int
+    messages: list[ChatHistoryMessageOut]
 
 
 def _extract_minimax_text(data: dict) -> str:
@@ -236,13 +254,109 @@ async def _fetch_knowledge_context(db: AsyncSession, user_query: str) -> str:
     return "\n".join(lines)
 
 
+async def _get_or_create_conversation(db: AsyncSession, user_id: int) -> AIChatConversation:
+    conv = (
+        await db.execute(
+            select(AIChatConversation)
+            .where(AIChatConversation.user_id == user_id)
+            .order_by(AIChatConversation.updated_at.desc(), AIChatConversation.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if conv:
+        return conv
+
+    conv = AIChatConversation(user_id=user_id, title="AI Chat")
+    db.add(conv)
+    await db.flush()
+    return conv
+
+
+async def _trim_conversation_messages(db: AsyncSession, conversation_id: int) -> None:
+    ids = (
+        await db.execute(
+            select(AIChatMessage.id)
+            .where(AIChatMessage.conversation_id == conversation_id)
+            .order_by(AIChatMessage.id.desc())
+        )
+    ).scalars().all()
+    if len(ids) <= MAX_MESSAGES_PER_CONVERSATION:
+        return
+    keep = ids[:MAX_MESSAGES_PER_CONVERSATION]
+    await db.execute(
+        delete(AIChatMessage).where(
+            AIChatMessage.conversation_id == conversation_id,
+            AIChatMessage.id.notin_(keep),
+        )
+    )
+
+
+async def _cleanup_old_messages(db: AsyncSession, user_id: int) -> None:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)
+    conversation_ids = (
+        await db.execute(select(AIChatConversation.id).where(AIChatConversation.user_id == user_id))
+    ).scalars().all()
+    if not conversation_ids:
+        return
+    await db.execute(
+        delete(AIChatMessage).where(
+            AIChatMessage.conversation_id.in_(conversation_ids),
+            AIChatMessage.created_at < cutoff,
+        )
+    )
+
+
+@router.get("/history", response_model=ChatHistoryOut)
+async def get_chat_history(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles("admin", "manager")),
+):
+    await _cleanup_old_messages(db, current_user.id)
+    conversation = await _get_or_create_conversation(db, current_user.id)
+    rows = (
+        await db.execute(
+            select(AIChatMessage)
+            .where(AIChatMessage.conversation_id == conversation.id)
+            .order_by(AIChatMessage.id.desc())
+            .limit(MAX_MESSAGES_PER_CONVERSATION)
+        )
+    ).scalars().all()
+    messages = list(reversed(rows))
+    await db.commit()
+    return ChatHistoryOut(
+        conversation_id=conversation.id,
+        max_messages=MAX_MESSAGES_PER_CONVERSATION,
+        retention_days=RETENTION_DAYS,
+        messages=[
+            ChatHistoryMessageOut(
+                id=m.id,
+                role=m.role,
+                content=m.content,
+                created_at=m.created_at.isoformat(),
+            )
+            for m in messages
+        ],
+    )
+
+
+@router.delete("/history", status_code=204)
+async def clear_chat_history(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles("admin", "manager")),
+):
+    conversation = await _get_or_create_conversation(db, current_user.id)
+    await db.execute(delete(AIChatMessage).where(AIChatMessage.conversation_id == conversation.id))
+    await db.commit()
+    return None
+
+
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
 @router.post("/query", response_model=AIChatResponse)
 async def ai_chat_query(
     request: AIChatRequest,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_roles("admin", "manager")),
+    current_user: User = Depends(require_roles("admin", "manager")),
 ):
     api_key, model = await resolve_minimax_runtime_config(db)
 
@@ -312,5 +426,15 @@ async def ai_chat_query(
         raise HTTPException(status_code=502, detail=f"Minimax API unreachable: {exc}")
 
     ai_text = _extract_minimax_text(data)
+
+    # Persist user + assistant messages, then enforce retention and max-lines limit.
+    conversation = await _get_or_create_conversation(db, current_user.id)
+    db.add(AIChatMessage(conversation_id=conversation.id, role="user", content=request.message.strip()))
+    db.add(AIChatMessage(conversation_id=conversation.id, role="assistant", content=ai_text))
+    conversation.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    await _trim_conversation_messages(db, conversation.id)
+    await _cleanup_old_messages(db, current_user.id)
+    await db.commit()
 
     return AIChatResponse(response=ai_text)
