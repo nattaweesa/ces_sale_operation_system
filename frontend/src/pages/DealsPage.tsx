@@ -782,7 +782,6 @@ export default function DealsPage() {
               name="deal_company_id"
               label="Company"
               rules={[{ required: true }]}
-              extra={editingDeal?.customer_name && !editingDeal?.deal_company_id ? `Legacy linked customer: ${editingDeal.customer_name}` : undefined}
             >
               <Select
                 allowClear

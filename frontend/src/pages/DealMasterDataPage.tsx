@@ -16,6 +16,7 @@ import {
 } from "antd";
 import { EditOutlined, PlusOutlined } from "@ant-design/icons";
 import {
+  customersApi,
   dealMasterDataApi,
   DealMasterDataBundle,
   DealMasterDataCESStage,
@@ -23,9 +24,10 @@ import {
   DealMasterDataCustomerType,
   DealMasterDataProductSystemType,
   DealMasterDataProjectStatus,
+  projectsApi,
 } from "../api";
 
-type ModalType = "customer-type" | "company" | "product-system" | "project-status" | "ces-stage" | null;
+type ModalType = "customer-type" | "company" | "product-system" | "project-status" | "ces-stage" | "project" | null;
 
 export default function DealMasterDataPage() {
   const [data, setData] = useState<DealMasterDataBundle>({
@@ -35,6 +37,8 @@ export default function DealMasterDataPage() {
     project_statuses: [],
     ces_stages: [],
   });
+  const [projectRows, setProjectRows] = useState<any[]>([]);
+  const [customerRows, setCustomerRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [editingRecord, setEditingRecord] = useState<any>(null);
@@ -43,8 +47,14 @@ export default function DealMasterDataPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await dealMasterDataApi.overview();
-      setData(res.data);
+      const [masterRes, projectsRes, customersRes] = await Promise.all([
+        dealMasterDataApi.overview(),
+        projectsApi.list(),
+        customersApi.list(),
+      ]);
+      setData(masterRes.data);
+      setProjectRows(projectsRes.data || []);
+      setCustomerRows(customersRes.data || []);
     } catch (error: any) {
       message.error(error?.response?.data?.detail || "Unable to load deal master data");
     } finally {
@@ -63,7 +73,7 @@ export default function DealMasterDataPage() {
     if (record) {
       form.setFieldsValue(record);
     } else {
-      form.setFieldsValue({ sort_order: 0, is_active: true });
+      form.setFieldsValue(type === "project" ? { status: "active" } : { sort_order: 0, is_active: true });
     }
   };
 
@@ -96,6 +106,10 @@ export default function DealMasterDataPage() {
         if (editingRecord) await dealMasterDataApi.updateCESStage(editingRecord.id, values);
         else await dealMasterDataApi.createCESStage(values);
       }
+      if (modalType === "project") {
+        if (editingRecord) await projectsApi.update(editingRecord.id, values);
+        else await projectsApi.create(values);
+      }
       message.success(editingRecord ? "Updated" : "Created");
       closeModal();
       load();
@@ -114,7 +128,10 @@ export default function DealMasterDataPage() {
     "product-system": editingRecord ? "Edit Product/System Type" : "New Product/System Type",
     "project-status": editingRecord ? "Edit Project Status" : "New Project Status",
     "ces-stage": editingRecord ? "Edit CES Stage" : "New CES Stage",
+    "project": editingRecord ? "Edit Project" : "New Project",
   };
+
+  const customerOptions = customerRows.map((item: any) => ({ value: item.id, label: item.name }));
 
   return (
     <Space direction="vertical" size={20} style={{ width: "100%" }}>
@@ -247,6 +264,30 @@ export default function DealMasterDataPage() {
         />
       </Card>
 
+      <Card
+        title="Projects"
+        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("project")}>New</Button>}
+      >
+        <Table
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+          size="small"
+          dataSource={projectRows}
+          columns={[
+            { title: "Project", dataIndex: "name" },
+            { title: "Customer", dataIndex: "customer_name", width: 220 },
+            { title: "Location", dataIndex: "location", width: 180 },
+            { title: "Status", dataIndex: "status", width: 120 },
+            {
+              title: "",
+              width: 80,
+              render: (_: unknown, record: any) => <Button icon={<EditOutlined />} size="small" onClick={() => openModal("project", record)} />,
+            },
+          ]}
+        />
+      </Card>
+
       <Modal
         open={modalType !== null}
         title={modalType ? modalTitleMap[modalType] : ""}
@@ -330,6 +371,33 @@ export default function DealMasterDataPage() {
               </Form.Item>
               <Form.Item name="is_active" label="Active" valuePropName="checked">
                 <Switch />
+              </Form.Item>
+            </>
+          )}
+
+          {modalType === "project" && (
+            <>
+              <Form.Item name="customer_id" label="Customer" rules={[{ required: true }]}> 
+                <Select options={customerOptions} showSearch optionFilterProp="label" />
+              </Form.Item>
+              <Form.Item name="name" label="Project Name" rules={[{ required: true }]}> 
+                <Input />
+              </Form.Item>
+              <Form.Item name="location" label="Location">
+                <Input />
+              </Form.Item>
+              <Form.Item name="status" label="Status" initialValue="active">
+                <Select
+                  options={[
+                    { value: "active", label: "Active" },
+                    { value: "won", label: "Won" },
+                    { value: "lost", label: "Lost" },
+                    { value: "cancelled", label: "Cancelled" },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item name="description" label="Notes">
+                <Input.TextArea rows={3} />
               </Form.Item>
             </>
           )}
