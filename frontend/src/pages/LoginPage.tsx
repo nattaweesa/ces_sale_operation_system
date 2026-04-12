@@ -67,9 +67,9 @@ export default function LoginPage() {
           <ThemeToggle />
         </div>
 
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 items-start justify-center pt-3 lg:items-center lg:pt-0">
           <div className="grid w-full max-w-7xl gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
-            <section className="flex flex-col justify-center px-2 lg:px-8">
+            <section className="hidden lg:flex flex-col justify-center px-2 lg:px-8">
               <div className="mb-14 flex items-center gap-4">
                 <div className={`flex h-11 w-11 items-center justify-center rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.24)] ${isAtrium ? "bg-gradient-to-br from-[#9fa4ff] to-[#a476ff]" : "bg-gradient-to-br from-primary to-secondary"}`}>
                   <span className={`text-sm font-extrabold tracking-wide ${isAtrium ? "text-[#111a55]" : "text-on-primary"}`}>CES</span>
@@ -182,7 +182,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className={`flex flex-col gap-3 pt-4 text-[11px] uppercase tracking-[0.22em] sm:flex-row sm:items-center sm:justify-between ${isAtrium ? "text-[#9ba6c8]" : "text-on-surface-variant"}`}>
+        <div className={`hidden lg:flex flex-col gap-3 pt-4 text-[11px] uppercase tracking-[0.22em] sm:flex-row sm:items-center sm:justify-between ${isAtrium ? "text-[#9ba6c8]" : "text-on-surface-variant"}`}>
           <p>© 2026 CES-ASIA.COM</p>
           <div className="flex gap-6">
             <span>{isAtrium ? "Status: Operational" : "Status: Operational"}</span>
