@@ -448,7 +448,7 @@ export default function DealsPage() {
     .reduce((s, d) => s + Number(d.expected_value || 0), 0);
 
   return (
-    <div>
+    <div className="deals-funnel-page">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
         <div>

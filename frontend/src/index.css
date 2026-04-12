@@ -150,3 +150,56 @@ h1, h2, h3, h4, .font-headline {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
+
+/* Classic theme fixes for pages that still contain Atrium hardcoded utility colors */
+[data-theme="classic"] .deals-dashboard-page,
+[data-theme="classic"] .deals-funnel-page {
+  color: rgb(var(--on-surface));
+}
+
+[data-theme="classic"] .deals-dashboard-page .text-\[\#dbe3ff\],
+[data-theme="classic"] .deals-dashboard-page .text-\[\#e5ebff\],
+[data-theme="classic"] .deals-funnel-page .text-\[\#dbe3ff\] {
+  color: rgb(var(--on-surface)) !important;
+}
+
+[data-theme="classic"] .deals-dashboard-page .text-\[\#97a6c9\],
+[data-theme="classic"] .deals-dashboard-page .text-\[\#9fb0d2\],
+[data-theme="classic"] .deals-funnel-page .text-\[\#97a6c9\],
+[data-theme="classic"] .deals-funnel-page .text-\[\#9fb0d2\] {
+  color: rgb(var(--on-surface-variant)) !important;
+}
+
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#101d3b\],
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#0f1d3b\],
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#0b1731\],
+[data-theme="classic"] .deals-funnel-page .bg-\[\#101d3b\] {
+  background-color: rgb(var(--surface-container-lowest)) !important;
+}
+
+[data-theme="classic"] .deals-dashboard-page .border-\[\#1f3159\],
+[data-theme="classic"] .deals-dashboard-page .border-\[\#223861\],
+[data-theme="classic"] .deals-dashboard-page .border-\[\#233861\],
+[data-theme="classic"] .deals-funnel-page .border-\[\#1f3159\],
+[data-theme="classic"] .deals-funnel-page .border-\[\#233861\] {
+  border-color: rgb(var(--outline-variant)) !important;
+}
+
+[data-theme="classic"] .deals-funnel-page .bg-\[\#1a2848\],
+[data-theme="classic"] .deals-funnel-page .hover\:bg-\[\#1f3159\]:hover,
+[data-theme="classic"] .deals-funnel-page .bg-\[\#1f3159\] {
+  background-color: rgb(var(--surface-container-low)) !important;
+}
+
+[data-theme="classic"] .deals-funnel-page .text-\[\#0f154b\],
+[data-theme="classic"] .deals-funnel-page .text-white {
+  color: rgb(var(--on-surface)) !important;
+}
+
+[data-theme="classic"] .deals-funnel-page .bg-primary-container {
+  background-color: rgb(var(--primary)) !important;
+}
+
+[data-theme="classic"] .deals-funnel-page .bg-primary-container.text-white {
+  color: rgb(var(--on-primary)) !important;
+}

@@ -109,7 +109,7 @@ export default function DealsDashboardPage() {
   ];
 
   return (
-    <div className="text-[#dbe3ff]">
+    <div className="deals-dashboard-page text-[#dbe3ff]">
       <div className="flex justify-between items-end mb-8 gap-4 flex-wrap">
         <div>
           <h2 className="text-3xl font-extrabold tracking-tight text-[#dbe3ff] font-headline">Executive Dashboard</h2>
