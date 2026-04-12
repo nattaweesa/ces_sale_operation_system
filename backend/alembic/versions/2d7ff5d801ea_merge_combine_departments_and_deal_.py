@@ -1,8 +1,8 @@
-"""merge: combine deal master and department features
+"""merge: combine departments and deal master
 
-Revision ID: 22a11b600df8
+Revision ID: 2d7ff5d801ea
 Revises: 20260410_03, 20260412_01
-Create Date: 2026-04-12 16:50:15.710381
+Create Date: 2026-04-12 16:52:43.270160
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '22a11b600df8'
+revision: str = '2d7ff5d801ea'
 down_revision: Union[str, None] = ('20260410_03', '20260412_01')
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
