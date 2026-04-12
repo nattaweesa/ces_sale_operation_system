@@ -590,22 +590,18 @@ export default function DealsPage() {
         />
         {isManager && (
           <Select
-            allowClear
             style={{ minWidth: 200 }}
-            placeholder="Department: All"
-            value={departmentIdFilter ?? undefined}
-            options={departmentOptions.map((d) => ({ value: d.id, label: d.name }))}
-            onChange={(value) => setDepartmentIdFilter(value ?? null)}
+            value={departmentIdFilter ?? "all"}
+            options={[{ value: "all", label: "All Departments" }, ...departmentOptions.map((d) => ({ value: d.id, label: d.name }))]}
+            onChange={(value) => setDepartmentIdFilter(value === "all" ? null : Number(value))}
           />
         )}
         {isManager && (
           <Select
-            allowClear
             style={{ minWidth: 220 }}
-            placeholder="Deal Owner: All"
-            value={ownerIdFilter ?? undefined}
-            options={ownerOptions}
-            onChange={(value) => setOwnerIdFilter(value ?? null)}
+            value={ownerIdFilter ?? "all"}
+            options={[{ value: "all", label: "All Owners" }, ...ownerOptions]}
+            onChange={(value) => setOwnerIdFilter(value === "all" ? null : Number(value))}
           />
         )}
         {projectSearch.trim() && (
