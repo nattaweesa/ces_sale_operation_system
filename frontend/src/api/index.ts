@@ -228,6 +228,71 @@ export const dealsApi = {
   reviewReportManager: () => api.get("/deals/review-report/manager"),
 };
 
+export interface DealMasterDataCustomerType {
+  id: number;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DealMasterDataCompany {
+  id: number;
+  customer_type_id: number;
+  customer_type_name?: string | null;
+  customer_id: number;
+  customer_name?: string | null;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DealMasterDataProductSystemType {
+  id: number;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DealMasterDataProjectStatus {
+  id: number;
+  key: string;
+  label: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DealMasterDataBundle {
+  customer_types: DealMasterDataCustomerType[];
+  companies: DealMasterDataCompany[];
+  product_system_types: DealMasterDataProductSystemType[];
+  project_statuses: DealMasterDataProjectStatus[];
+}
+
+export const dealMasterDataApi = {
+  options: () => api.get<DealMasterDataBundle>("/deal-master-data/options"),
+  overview: () => api.get<DealMasterDataBundle>("/deal-master-data/overview"),
+  createCustomerType: (data: { name: string; sort_order?: number; is_active?: boolean }) =>
+    api.post<DealMasterDataCustomerType>("/deal-master-data/customer-types", data),
+  updateCustomerType: (id: number, data: { name?: string; sort_order?: number; is_active?: boolean }) =>
+    api.put<DealMasterDataCustomerType>(`/deal-master-data/customer-types/${id}`, data),
+  createCompany: (data: { customer_type_id: number; name: string; sort_order?: number; is_active?: boolean; customer_id?: number }) =>
+    api.post<DealMasterDataCompany>("/deal-master-data/companies", data),
+  updateCompany: (id: number, data: { customer_type_id?: number; name?: string; sort_order?: number; is_active?: boolean; customer_id?: number }) =>
+    api.put<DealMasterDataCompany>(`/deal-master-data/companies/${id}`, data),
+  quickAddCompany: (data: { customer_type_id: number; name: string; sort_order?: number; customer_id?: number }) =>
+    api.post<DealMasterDataCompany>("/deal-master-data/quick-add/company", data),
+  createProductSystemType: (data: { name: string; sort_order?: number; is_active?: boolean }) =>
+    api.post<DealMasterDataProductSystemType>("/deal-master-data/product-system-types", data),
+  updateProductSystemType: (id: number, data: { name?: string; sort_order?: number; is_active?: boolean }) =>
+    api.put<DealMasterDataProductSystemType>(`/deal-master-data/product-system-types/${id}`, data),
+  quickAddProductSystemType: (data: { name: string; sort_order?: number }) =>
+    api.post<DealMasterDataProductSystemType>("/deal-master-data/quick-add/product-system-type", data),
+  createProjectStatus: (data: { key?: string; label: string; sort_order?: number; is_active?: boolean }) =>
+    api.post<DealMasterDataProjectStatus>("/deal-master-data/project-statuses", data),
+  updateProjectStatus: (id: number, data: { key?: string; label?: string; sort_order?: number; is_active?: boolean }) =>
+    api.put<DealMasterDataProjectStatus>(`/deal-master-data/project-statuses/${id}`, data),
+};
+
 export const sourcingApi = {
   backfill: () => api.post("/sourcing/backfill", { run: true }),
   stats: () => api.get("/sourcing/stats"),

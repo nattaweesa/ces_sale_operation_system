@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Integer, String, UniqueConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
@@ -16,7 +17,7 @@ class RolePermission(Base):
     role: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     permission_key: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     is_allowed: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    updated_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

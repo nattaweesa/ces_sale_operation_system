@@ -25,6 +25,7 @@ import RolePermissionsPage from "./pages/RolePermissionsPage";
 import UserSessionsPage from "./pages/UserSessionsPage";
 import ProfilePage from "./pages/ProfilePage";
 import QuotationMasterDataPage from "./pages/QuotationMasterDataPage";
+import DealMasterDataPage from "./pages/DealMasterDataPage";
 import PricingSessionV2Page from "./pages/PricingSessionV2Page";
 import QuotationV2Page from "./pages/QuotationV2Page";
 import V2OverviewPage from "./pages/V2OverviewPage";
@@ -203,6 +204,7 @@ export default function App() {
             <Route path="admin/role-permissions" element={<RequireRoles roles={["admin"]}><RolePermissionsPage /></RequireRoles>} />
             <Route path="admin/user-sessions" element={<RequireRoles roles={["admin"]}><UserSessionsPage /></RequireRoles>} />
             <Route path="admin/quotation-master-data" element={<RequireRoles roles={["admin", "manager"]}><QuotationMasterDataPage /></RequireRoles>} />
+            <Route path="admin/deal-master-data" element={<RequireRoles roles={["admin", "manager"]}><DealMasterDataPage /></RequireRoles>} />
             <Route path="admin/ai-settings" element={<RequireRoles roles={["admin"]}><AdminAISettingsPage /></RequireRoles>} />
             <Route path="ai-chat" element={<RequireRoles roles={["admin", "manager"]}><AIChatPage /></RequireRoles>} />
           </Route>

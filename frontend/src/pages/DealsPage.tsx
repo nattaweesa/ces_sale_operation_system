@@ -16,8 +16,8 @@ import {
   message,
 } from "antd";
 import dayjs from "dayjs";
-import { CheckOutlined } from "@ant-design/icons";
-import { boqsApi, customersApi, dealsApi, projectsApi, usersApi } from "../api";
+import { CheckOutlined, PlusOutlined } from "@ant-design/icons";
+import { boqsApi, dealMasterDataApi, dealsApi, projectsApi, usersApi } from "../api";
 import { useAuthStore } from "../store/authStore";
 import { formatTHBCompact, numberInputFormatter, numberInputParser } from "../utils/currency";
 
@@ -39,7 +39,7 @@ const STAGE_OPTIONS = [
   { value: "lost", label: "Lost" },
 ];
 
-const STATUS_OPTIONS = [
+const DEFAULT_PROJECT_STATUS_OPTIONS = [
   { value: "design", label: "Design" },
   { value: "bidding", label: "Bidding" },
   { value: "award", label: "Award" },
@@ -50,18 +50,6 @@ const STATUS_OPTIONS = [
   { value: "won", label: "Won" },
   { value: "lost", label: "Lost" },
 ];
-
-const PROJECT_STATUS_LABELS: Record<string, string> = {
-  design: "Design",
-  bidding: "Bidding",
-  award: "Award",
-  on_hold: "On Hold",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  open: "Open",
-  won: "Won",
-  lost: "Lost",
-};
 
 const PROJECT_STATUS_STYLES: Record<string, string> = {
   design: "bg-[#1f2d5a] text-[#76c4ff]",
@@ -95,11 +83,6 @@ function ownerBadgeClass(ownerName?: string) {
   return OWNER_BADGE_CLASSES[hash % OWNER_BADGE_CLASSES.length];
 }
 
-function formatProjectStatus(status?: string) {
-  if (!status) return "Design";
-  return PROJECT_STATUS_LABELS[status] || status.replace("_", " ");
-}
-
 const MONTH_OPTIONS = [
   { value: 1, label: "Jan" },
   { value: 2, label: "Feb" },
@@ -129,13 +112,24 @@ export default function DealsPage() {
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [customers, setCustomers] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [owners, setOwners] = useState<any[]>([]);
+  const [customerTypes, setCustomerTypes] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [productSystemTypes, setProductSystemTypes] = useState<any[]>([]);
+  const [projectStatusOptions, setProjectStatusOptions] = useState(DEFAULT_PROJECT_STATUS_OPTIONS);
 
   const [openDeal, setOpenDeal] = useState(false);
   const [editingDeal, setEditingDeal] = useState<any>(null);
   const [dealForm] = Form.useForm();
+  const selectedCustomerTypeId = Form.useWatch("deal_customer_type_id", dealForm);
+  const selectedProductSystemTypeIds = Form.useWatch("product_system_type_ids", dealForm) || [];
+  const [quickCompanyOpen, setQuickCompanyOpen] = useState(false);
+  const [quickCompanySaving, setQuickCompanySaving] = useState(false);
+  const [quickCompanyForm] = Form.useForm();
+  const [quickProductSystemOpen, setQuickProductSystemOpen] = useState(false);
+  const [quickProductSystemSaving, setQuickProductSystemSaving] = useState(false);
+  const [quickProductSystemForm] = Form.useForm();
 
   const [openTasks, setOpenTasks] = useState(false);
   const [taskDeal, setTaskDeal] = useState<any>(null);
@@ -154,10 +148,19 @@ export default function DealsPage() {
   const [projectSearch, setProjectSearch] = useState(() => localStorage.getItem(DEALS_SEARCH_STORAGE_KEY) || "");
   const [ownerIdFilter, setOwnerIdFilter] = useState<number | null>(null);
 
+  const loadMasterData = async () => {
+    const res = await dealMasterDataApi.options();
+    setCustomerTypes(res.data.customer_types || []);
+    setCompanies(res.data.companies || []);
+    setProductSystemTypes(res.data.product_system_types || []);
+    setProjectStatusOptions(
+      (res.data.project_statuses || []).map((item) => ({ value: item.key, label: item.label }))
+    );
+  };
+
   const loadReference = async () => {
     try {
-      const [c, p] = await Promise.all([customersApi.list(), projectsApi.list()]);
-      setCustomers(c.data);
+      const [p] = await Promise.all([projectsApi.list(), loadMasterData()]);
       setProjects(p.data);
       if (isManager) {
         const u = await usersApi.list();
@@ -195,9 +198,10 @@ export default function DealsPage() {
     dealForm.resetFields();
     dealForm.setFieldsValue({
       deal_cycle_stage: "lead",
-      status: "design",
+      status: projectStatusOptions[0]?.value || DEFAULT_PROJECT_STATUS_OPTIONS[0].value,
       probability_pct: 10,
       expected_value: 0,
+      product_system_type_ids: [],
       owner_id: user?.user_id,
     });
     setOpenDeal(true);
@@ -207,6 +211,7 @@ export default function DealsPage() {
     setEditingDeal(deal);
     dealForm.setFieldsValue({
       ...deal,
+      product_system_type_ids: (deal.product_system_type_ids || []).map((value: any) => Number(value)),
       expected_close_date: deal.expected_close_date ? dayjs(deal.expected_close_date) : undefined,
     });
     setOpenDeal(true);
@@ -217,6 +222,7 @@ export default function DealsPage() {
     const payload = {
       ...v,
       expected_close_date: v.expected_close_date ? v.expected_close_date.format("YYYY-MM-DD") : null,
+      product_system_type_ids: v.product_system_type_ids || [],
     };
     if (editingDeal) {
       await dealsApi.update(editingDeal.id, payload);
@@ -228,6 +234,58 @@ export default function DealsPage() {
     setOpenDeal(false);
     setEditingDeal(null);
     loadDeals();
+  };
+
+  useEffect(() => {
+    const selectedCompanyId = dealForm.getFieldValue("deal_company_id");
+    if (!selectedCustomerTypeId || !selectedCompanyId) return;
+    const selectedCompany = companies.find((row) => row.id === selectedCompanyId);
+    if (selectedCompany && selectedCompany.customer_type_id !== selectedCustomerTypeId) {
+      dealForm.setFieldValue("deal_company_id", undefined);
+    }
+  }, [companies, dealForm, selectedCustomerTypeId]);
+
+  const saveQuickCompany = async () => {
+    const values = await quickCompanyForm.validateFields();
+    setQuickCompanySaving(true);
+    try {
+      const res = await dealMasterDataApi.quickAddCompany({
+        customer_type_id: values.customer_type_id,
+        name: values.name,
+      });
+      await loadMasterData();
+      dealForm.setFieldsValue({
+        deal_customer_type_id: res.data.customer_type_id,
+        deal_company_id: res.data.id,
+      });
+      setQuickCompanyOpen(false);
+      quickCompanyForm.resetFields();
+      message.success("Company added");
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || "Unable to add company");
+    } finally {
+      setQuickCompanySaving(false);
+    }
+  };
+
+  const saveQuickProductSystemType = async () => {
+    const values = await quickProductSystemForm.validateFields();
+    setQuickProductSystemSaving(true);
+    try {
+      const res = await dealMasterDataApi.quickAddProductSystemType({ name: values.name });
+      await loadMasterData();
+      dealForm.setFieldValue(
+        "product_system_type_ids",
+        Array.from(new Set([...(selectedProductSystemTypeIds || []), res.data.id]))
+      );
+      setQuickProductSystemOpen(false);
+      quickProductSystemForm.resetFields();
+      message.success("Product/System Type added");
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || "Unable to add Product/System Type");
+    } finally {
+      setQuickProductSystemSaving(false);
+    }
   };
 
   const openTaskModal = async (deal: any) => {
@@ -417,14 +475,53 @@ export default function DealsPage() {
     return map;
   }, [projects]);
 
+  const projectStatusLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    DEFAULT_PROJECT_STATUS_OPTIONS.forEach((item) => {
+      map[item.value] = item.label;
+    });
+    projectStatusOptions.forEach((item) => {
+      map[item.value] = item.label;
+    });
+    return map;
+  }, [projectStatusOptions]);
+
+  const customerTypeOptions = useMemo(
+    () => customerTypes.map((row) => ({ value: row.id, label: row.name })),
+    [customerTypes]
+  );
+
+  const companyOptions = useMemo(
+    () => companies
+      .filter((row) => !selectedCustomerTypeId || row.customer_type_id === selectedCustomerTypeId)
+      .map((row) => ({ value: row.id, label: row.name })),
+    [companies, selectedCustomerTypeId]
+  );
+
+  const productSystemTypeOptions = useMemo(
+    () => productSystemTypes.map((row) => ({ value: row.id, label: row.name })),
+    [productSystemTypes]
+  );
+
+  const statusOptions = useMemo(() => {
+    if (projectStatusOptions.length > 0) return projectStatusOptions;
+    return DEFAULT_PROJECT_STATUS_OPTIONS;
+  }, [projectStatusOptions]);
+
+  const formatProjectStatus = (status?: string) => {
+    if (!status) return "Design";
+    return projectStatusLabelMap[status] || status.replace(/_/g, " ");
+  };
+
   const filteredDeals = useMemo(() => {
     const q = projectSearch.trim().toLowerCase();
     if (!q) return deals;
     return deals.filter((d) => {
       const projectName = d.project_name || (d.project_id ? projectNameById[d.project_id] : "") || "";
-      const customerName = d.customer_name || "";
+      const customerName = d.company_name || d.customer_name || "";
       const dealTitle = d.title || "";
-      const searchableText = `${projectName} ${customerName} ${dealTitle}`.toLowerCase();
+      const productSystemNames = (d.product_system_types || []).map((row: any) => row.name).join(" ");
+      const searchableText = `${projectName} ${customerName} ${dealTitle} ${productSystemNames}`.toLowerCase();
       return searchableText.includes(q);
     });
   }, [deals, projectSearch, projectNameById]);
@@ -561,7 +658,17 @@ export default function DealsPage() {
                       <h4 className="font-headline font-bold text-[#dbe3ff] text-sm mb-0.5 group-hover:text-[#a6d8ff] transition-colors line-clamp-2">
                         {deal.title}
                       </h4>
-                      <p className="text-xs text-[#97a6c9] mb-3">{deal.customer_name || "—"}</p>
+                      <p className="text-xs text-[#97a6c9] mb-3">{deal.company_name || deal.customer_name || "—"}</p>
+
+                      {(deal.product_system_types || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {(deal.product_system_types || []).slice(0, 3).map((item: any) => (
+                            <span key={item.id} className="text-[10px] px-2 py-0.5 rounded-full bg-[#1a2848] text-[#9fb0d2]">
+                              {item.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       {/* Next action */}
                       {deal.next_action && (
@@ -649,14 +756,64 @@ export default function DealsPage() {
             <Input />
           </Form.Item>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            <Form.Item name="customer_id" label="Customer">
-              <Select allowClear options={customers.map((c) => ({ value: c.id, label: c.name }))} />
+            <Form.Item name="deal_customer_type_id" label="Type of Customer" rules={[{ required: true }]}> 
+              <Select allowClear options={customerTypeOptions} placeholder="Select customer type" />
             </Form.Item>
-            {editingDeal && (
-              <Form.Item name="project_id" label="Project">
-                <Select allowClear options={projects.map((p) => ({ value: p.id, label: p.name }))} />
-              </Form.Item>
-            )}
+            <Form.Item
+              name="deal_company_id"
+              label="Company"
+              rules={[{ required: true }]}
+              extra={editingDeal?.customer_name && !editingDeal?.deal_company_id ? `Legacy linked customer: ${editingDeal.customer_name}` : undefined}
+            >
+              <Select
+                allowClear
+                showSearch
+                disabled={!selectedCustomerTypeId}
+                options={companyOptions}
+                placeholder={selectedCustomerTypeId ? "Select company" : "Select customer type first"}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <div style={{ padding: 8, borderTop: "1px solid #f0f0f0" }}>
+                      <Button
+                        type="text"
+                        icon={<PlusOutlined />}
+                        disabled={!selectedCustomerTypeId}
+                        onClick={() => {
+                          quickCompanyForm.setFieldsValue({ customer_type_id: selectedCustomerTypeId });
+                          setQuickCompanyOpen(true);
+                        }}
+                      >
+                        Quick add company
+                      </Button>
+                    </div>
+                  </>
+                )}
+              />
+            </Form.Item>
+            <Form.Item name="project_id" label="Project">
+              <Select allowClear options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+            </Form.Item>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: isManager ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 12 }}>
+            <Form.Item name="product_system_type_ids" label="Product / System Type">
+              <Select
+                mode="multiple"
+                allowClear
+                options={productSystemTypeOptions}
+                placeholder="Select one or more types"
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <div style={{ padding: 8, borderTop: "1px solid #f0f0f0" }}>
+                      <Button type="text" icon={<PlusOutlined />} onClick={() => setQuickProductSystemOpen(true)}>
+                        Quick add product/system type
+                      </Button>
+                    </div>
+                  </>
+                )}
+              />
+            </Form.Item>
             {isManager && (
               <Form.Item name="owner_id" label="Owner" rules={[{ required: true }]}>
                 <Select options={ownerOptions} />
@@ -668,7 +825,7 @@ export default function DealsPage() {
               <Select options={STAGE_OPTIONS} />
             </Form.Item>
             <Form.Item name="status" label="Project Status" rules={[{ required: true }]}>
-              <Select options={STATUS_OPTIONS} />
+              <Select options={statusOptions} />
             </Form.Item>
             <Form.Item name="probability_pct" label="Probability %">
               <InputNumber min={0} max={100} style={{ width: "100%" }} />
@@ -693,6 +850,39 @@ export default function DealsPage() {
           </div>
           <Form.Item name="description" label="Description / Notes">
             <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={quickCompanyOpen}
+        title="Quick Add Company"
+        onCancel={() => setQuickCompanyOpen(false)}
+        onOk={saveQuickCompany}
+        okText="Add"
+        confirmLoading={quickCompanySaving}
+      >
+        <Form form={quickCompanyForm} layout="vertical" style={{ marginTop: 12 }}>
+          <Form.Item name="customer_type_id" label="Type of Customer" rules={[{ required: true }]}> 
+            <Select options={customerTypeOptions} />
+          </Form.Item>
+          <Form.Item name="name" label="Company Name" rules={[{ required: true }]}> 
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={quickProductSystemOpen}
+        title="Quick Add Product / System Type"
+        onCancel={() => setQuickProductSystemOpen(false)}
+        onOk={saveQuickProductSystemType}
+        okText="Add"
+        confirmLoading={quickProductSystemSaving}
+      >
+        <Form form={quickProductSystemForm} layout="vertical" style={{ marginTop: 12 }}>
+          <Form.Item name="name" label="Product / System Type" rules={[{ required: true }]}> 
+            <Input />
           </Form.Item>
         </Form>
       </Modal>
@@ -784,7 +974,7 @@ export default function DealsPage() {
                     <Select allowClear placeholder="Keep current CES stage" options={STAGE_OPTIONS} />
                   </Form.Item>
                   <Form.Item name="status" label="Project Status (optional)">
-                    <Select allowClear placeholder="Keep current project status" options={STATUS_OPTIONS} />
+                    <Select allowClear placeholder="Keep current project status" options={statusOptions} />
                   </Form.Item>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, alignItems: "end" }}>

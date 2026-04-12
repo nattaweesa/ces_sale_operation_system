@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.deal import Deal, DealTask, DealActivity
+from app.models.deal_master import DealCompany, DealCustomerType, DealProductSystemType, DealProjectStatusOption
 from app.models.deal_forecast import DealForecastMonthly
 from app.models.project import Project
 from app.models.user import User
@@ -52,9 +53,12 @@ async def _load_deal(deal_id: int, db: AsyncSession) -> Optional[Deal]:
     stmt = (
         select(Deal)
         .options(
+            selectinload(Deal.deal_customer_type),
+            selectinload(Deal.deal_company),
             selectinload(Deal.customer),
             selectinload(Deal.project),
             selectinload(Deal.owner),
+            selectinload(Deal.product_system_types),
             selectinload(Deal.tasks),
             selectinload(Deal.activities).selectinload(DealActivity.creator),
         )
@@ -77,9 +81,16 @@ def _assert_access(user: User, deal: Deal) -> None:
 
 def _to_deal_out(deal: Deal) -> DealOut:
     out = DealOut.model_validate(deal)
+    out.customer_type_name = deal.deal_customer_type.name if deal.deal_customer_type else None
+    out.company_name = deal.deal_company.name if deal.deal_company else None
     out.customer_name = deal.customer.name if deal.customer else None
     out.project_name = deal.project.name if deal.project else None
     out.owner_name = deal.owner.full_name if deal.owner else None
+    out.product_system_type_ids = [row.id for row in deal.product_system_types]
+    out.product_system_types = [
+        {"id": row.id, "name": row.name}
+        for row in sorted(deal.product_system_types, key=lambda item: (item.sort_order, item.name.lower()))
+    ]
     out.tasks = [DealTaskOut.model_validate(t) for t in deal.tasks]
     acts = []
     for a in deal.activities:
@@ -88,6 +99,63 @@ def _to_deal_out(deal: Deal) -> DealOut:
         acts.append(ao)
     out.activities = acts
     return out
+
+
+async def _resolve_project_status(status_key: Optional[str], db: AsyncSession) -> Optional[DealProjectStatusOption]:
+    if not status_key:
+        return None
+    result = await db.execute(select(DealProjectStatusOption).where(DealProjectStatusOption.key == status_key).limit(1))
+    return result.scalar_one_or_none()
+
+
+async def _prepare_deal_master_data(
+    data: dict,
+    db: AsyncSession,
+) -> tuple[dict, Optional[list[DealProductSystemType]]]:
+    prepared = dict(data)
+    product_system_type_ids = prepared.pop("product_system_type_ids", None)
+    product_system_types: Optional[list[DealProductSystemType]] = None
+
+    customer_type_id = prepared.get("deal_customer_type_id")
+    company_id = prepared.get("deal_company_id")
+
+    if customer_type_id is not None:
+        customer_type_result = await db.execute(select(DealCustomerType).where(DealCustomerType.id == customer_type_id))
+        if not customer_type_result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Invalid customer type")
+
+    if company_id is not None:
+        company_result = await db.execute(select(DealCompany).where(DealCompany.id == company_id))
+        company = company_result.scalar_one_or_none()
+        if not company:
+            raise HTTPException(status_code=400, detail="Invalid company")
+        if customer_type_id is not None and company.customer_type_id != customer_type_id:
+            raise HTTPException(status_code=400, detail="Selected company does not belong to the selected customer type")
+        prepared["deal_customer_type_id"] = company.customer_type_id
+        prepared["customer_id"] = company.customer_id
+    elif "deal_company_id" in prepared:
+        prepared["deal_company_id"] = None
+        if prepared.get("deal_customer_type_id") is None:
+            prepared["customer_id"] = prepared.get("customer_id")
+
+    if "status" in prepared:
+        status_option = await _resolve_project_status(prepared.get("status"), db)
+        if not status_option:
+            raise HTTPException(status_code=400, detail="Invalid project status")
+
+    if product_system_type_ids is not None:
+        normalized_ids = sorted({int(value) for value in product_system_type_ids})
+        if normalized_ids:
+            result = await db.execute(
+                select(DealProductSystemType).where(DealProductSystemType.id.in_(normalized_ids))
+            )
+            product_system_types = result.scalars().all()
+            if len(product_system_types) != len(normalized_ids):
+                raise HTTPException(status_code=400, detail="One or more product/system types are invalid")
+        else:
+            product_system_types = []
+
+    return prepared, product_system_types
 
 
 @router.get("", response_model=list[DealOut])
@@ -101,9 +169,12 @@ async def list_deals(
     stmt = (
         select(Deal)
         .options(
+            selectinload(Deal.deal_customer_type),
+            selectinload(Deal.deal_company),
             selectinload(Deal.customer),
             selectinload(Deal.project),
             selectinload(Deal.owner),
+            selectinload(Deal.product_system_types),
             selectinload(Deal.tasks),
             selectinload(Deal.activities).selectinload(DealActivity.creator),
         )
@@ -132,7 +203,7 @@ async def create_deal(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    data = payload.model_dump()
+    data, product_system_types = await _prepare_deal_master_data(payload.model_dump(), db)
 
     if data.get("owner_id") is None:
         data["owner_id"] = current_user.id
@@ -153,6 +224,8 @@ async def create_deal(
         data["project_id"] = auto_project.id
 
     deal = Deal(**data)
+    if product_system_types is not None:
+        deal.product_system_types = product_system_types
     db.add(deal)
     await db.flush()
 
@@ -202,7 +275,7 @@ async def update_deal(
     if not await can_user(db, current_user, "deals.view_all"):
         _assert_access(current_user, deal)
 
-    updates = payload.model_dump(exclude_none=True)
+    updates, product_system_types = await _prepare_deal_master_data(payload.model_dump(exclude_none=True), db)
 
     if "owner_id" in updates and not _is_manager(current_user):
         raise HTTPException(status_code=403, detail="Only manager/admin can reassign owner")
@@ -212,6 +285,9 @@ async def update_deal(
 
     for field, value in updates.items():
         setattr(deal, field, value)
+
+    if product_system_types is not None:
+        deal.product_system_types = product_system_types
 
     deal.last_reviewed_at = datetime.now(timezone.utc)
 

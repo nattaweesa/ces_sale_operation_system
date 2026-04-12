@@ -4,6 +4,13 @@ from app.models.brand import Brand
 from app.models.category import Category
 from app.models.product import Product, ProductAttachment
 from app.models.customer import Customer, Contact
+from app.models.deal_master import (
+    DealCustomerType,
+    DealCompany,
+    DealProductSystemType,
+    DealProjectStatusOption,
+    DealProductSystemLink,
+)
 from app.models.project import Project
 from app.models.boq import BOQ, BOQItem
 from app.models.quotation import (
@@ -56,6 +63,7 @@ __all__ = [
     "Brand", "Category",
     "Product", "ProductAttachment",
     "Customer", "Contact",
+    "DealCustomerType", "DealCompany", "DealProductSystemType", "DealProjectStatusOption", "DealProductSystemLink",
     "Project",
     "BOQ", "BOQItem",
     "Quotation", "QuotationSection", "QuotationLine", "QuotationRevision",

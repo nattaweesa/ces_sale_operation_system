@@ -4,6 +4,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from decimal import Decimal
+from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -37,7 +38,7 @@ from app.services.auth import get_current_user
 router = APIRouter(prefix="/v2", tags=["boq-pricing-v2"])
 
 
-def _to_decimal(value: Decimal | int | float | str) -> Decimal:
+def _to_decimal(value: Union[Decimal, int, float, str]) -> Decimal:
     return Decimal(str(value))
 
 
@@ -76,7 +77,7 @@ def _serialize_boq_for_hash(boq_items: list[BOQItem]) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-async def _load_pricing_session(db: AsyncSession, session_id: int) -> PricingSessionV2 | None:
+async def _load_pricing_session(db: AsyncSession, session_id: int) -> Optional[PricingSessionV2]:
     result = await db.execute(
         select(PricingSessionV2)
         .options(selectinload(PricingSessionV2.lines))
@@ -85,7 +86,7 @@ async def _load_pricing_session(db: AsyncSession, session_id: int) -> PricingSes
     return result.scalar_one_or_none()
 
 
-async def _load_quotation_v2(db: AsyncSession, quotation_id: int) -> QuotationV2 | None:
+async def _load_quotation_v2(db: AsyncSession, quotation_id: int) -> Optional[QuotationV2]:
     result = await db.execute(
         select(QuotationV2)
         .options(selectinload(QuotationV2.snapshots))
@@ -154,8 +155,8 @@ async def create_boq_revision_from_boq(
 
 @router.get("/boq-revisions", response_model=list[BOQRevisionV2Out])
 async def list_boq_revisions(
-    boq_id: int | None = None,
-    project_id: int | None = None,
+    boq_id: Optional[int] = None,
+    project_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -291,8 +292,8 @@ async def get_pricing_session(
 
 @router.get("/pricing-sessions", response_model=list[PricingSessionV2Out])
 async def list_pricing_sessions(
-    boq_id: int | None = None,
-    project_id: int | None = None,
+    boq_id: Optional[int] = None,
+    project_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -496,7 +497,7 @@ async def create_quotation_from_pricing(
 
 @router.get("/quotations", response_model=list[QuotationV2Out])
 async def list_quotations_v2(
-    project_id: int | None = None,
+    project_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):

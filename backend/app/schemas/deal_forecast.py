@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -11,7 +12,7 @@ class DealForecastMonthlyItemIn(BaseModel):
     forecast_month: int = Field(ge=1, le=12)
     amount: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
     win_pct: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("100"))
-    note: str | None = None
+    note: Optional[str] = None
 
 
 class DealForecastMonthlyBulkIn(BaseModel):
@@ -26,7 +27,7 @@ class DealForecastMonthlyOut(BaseModel):
     amount: Decimal
     win_pct: Decimal
     net_amount: Decimal
-    note: str | None = None
+    note: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

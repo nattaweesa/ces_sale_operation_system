@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
+from typing import Optional
 
 from sqlalchemy import Integer, DateTime, ForeignKey, Numeric, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -21,7 +22,7 @@ class DealForecastMonthly(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
     win_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0)
     net_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
-    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

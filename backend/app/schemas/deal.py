@@ -5,6 +5,13 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 
+class DealProductSystemTypeSelectionOut(BaseModel):
+    id: int
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
 class DealTaskCreate(BaseModel):
     title: str
     description: Optional[str] = None
@@ -65,6 +72,8 @@ class DealActivityOut(BaseModel):
 
 class DealBase(BaseModel):
     title: str
+    deal_customer_type_id: Optional[int] = None
+    deal_company_id: Optional[int] = None
     customer_id: Optional[int] = None
     project_id: Optional[int] = None
     owner_id: Optional[int] = None
@@ -82,6 +91,7 @@ class DealBase(BaseModel):
     source: Optional[str] = None
     competitor: Optional[str] = None
     description: Optional[str] = None
+    product_system_type_ids: list[int] = []
 
 
 class DealCreate(DealBase):
@@ -90,6 +100,8 @@ class DealCreate(DealBase):
 
 class DealUpdate(BaseModel):
     title: Optional[str] = None
+    deal_customer_type_id: Optional[int] = None
+    deal_company_id: Optional[int] = None
     customer_id: Optional[int] = None
     project_id: Optional[int] = None
     owner_id: Optional[int] = None
@@ -107,11 +119,14 @@ class DealUpdate(BaseModel):
     source: Optional[str] = None
     competitor: Optional[str] = None
     description: Optional[str] = None
+    product_system_type_ids: Optional[list[int]] = None
 
 
 class DealOut(BaseModel):
     id: int
     title: str
+    deal_customer_type_id: Optional[int] = None
+    deal_company_id: Optional[int] = None
     customer_id: Optional[int] = None
     project_id: Optional[int] = None
     owner_id: int
@@ -135,8 +150,12 @@ class DealOut(BaseModel):
     updated_at: datetime
 
     customer_name: Optional[str] = None
+    customer_type_name: Optional[str] = None
+    company_name: Optional[str] = None
     project_name: Optional[str] = None
     owner_name: Optional[str] = None
+    product_system_type_ids: list[int] = []
+    product_system_types: list[DealProductSystemTypeSelectionOut] = []
 
     tasks: list[DealTaskOut] = []
     activities: list[DealActivityOut] = []

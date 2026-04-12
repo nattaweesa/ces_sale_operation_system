@@ -10,6 +10,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.boq import BOQ
     from app.models.customer import Customer
+    from app.models.deal_master import DealCompany, DealCustomerType, DealProductSystemType
     from app.models.deal_forecast import DealForecastMonthly
     from app.models.project import Project
     from app.models.user import User
@@ -20,6 +21,8 @@ class Deal(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    deal_customer_type_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("deal_customer_types.id"), nullable=True)
+    deal_company_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("deal_companies.id"), nullable=True)
     customer_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("customers.id"), nullable=True)
     project_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("projects.id"), nullable=True)
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
@@ -46,9 +49,17 @@ class Deal(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
+    deal_customer_type: Mapped["Optional[DealCustomerType]"] = relationship("DealCustomerType", lazy="select")
+    deal_company: Mapped["Optional[DealCompany]"] = relationship("DealCompany", lazy="select")
     customer: Mapped["Optional[Customer]"] = relationship("Customer", lazy="select")
     project: Mapped["Optional[Project]"] = relationship("Project", lazy="select")
     owner: Mapped["User"] = relationship("User", lazy="select")
+    product_system_types: Mapped[list["DealProductSystemType"]] = relationship(
+        "DealProductSystemType",
+        secondary="deal_product_system_links",
+        back_populates="deals",
+        lazy="select",
+    )
     boqs: Mapped[list["BOQ"]] = relationship("BOQ", lazy="select")
     tasks: Mapped[list["DealTask"]] = relationship(
         "DealTask", back_populates="deal", cascade="all, delete-orphan", order_by="DealTask.created_at.desc()"

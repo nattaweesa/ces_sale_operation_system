@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 import io
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,7 +48,7 @@ def _cell_text(v: object) -> str:
     return str(v).strip()
 
 
-def _cell_num(v: object) -> float | None:
+def _cell_num(v: object) -> Optional[float]:
     if v is None:
         return None
     if isinstance(v, (int, float, Decimal)):
@@ -153,7 +154,7 @@ def _parse_boq_rows(rows: list[tuple[object, ...]]) -> tuple[str, list[dict], in
             seq += 1
     else:
         mode = "template"
-        current_section: str | None = None
+        current_section: Optional[str] = None
 
         for row in rows:
             c0 = row[0] if len(row) > 0 else None
