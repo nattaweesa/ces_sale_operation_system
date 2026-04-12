@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.customer import Customer
 from app.models.deal_master import (
+    DealCESStageOption,
     DealCompany,
     DealCustomerType,
     DealProductSystemType,
@@ -18,6 +19,9 @@ from app.models.deal_master import (
 )
 from app.models.user import User
 from app.schemas.deal_master_data import (
+    DealCESStageOptionCreate,
+    DealCESStageOptionOut,
+    DealCESStageOptionUpdate,
     DealCompanyCreate,
     DealCompanyOut,
     DealCompanyUpdate,
@@ -103,6 +107,14 @@ async def _list_project_statuses(db: AsyncSession, active_only: bool) -> list[De
     return result.scalars().all()
 
 
+async def _list_ces_stages(db: AsyncSession, active_only: bool) -> list[DealCESStageOption]:
+    stmt = select(DealCESStageOption).order_by(DealCESStageOption.sort_order.asc(), DealCESStageOption.label.asc())
+    if active_only:
+        stmt = stmt.where(DealCESStageOption.is_active == True)
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
 async def _get_customer_type_or_404(customer_type_id: int, db: AsyncSession) -> DealCustomerType:
     result = await db.execute(select(DealCustomerType).where(DealCustomerType.id == customer_type_id))
     row = result.scalar_one_or_none()
@@ -139,6 +151,14 @@ async def _get_project_status_or_404(project_status_id: int, db: AsyncSession) -
     return row
 
 
+async def _get_ces_stage_or_404(stage_id: int, db: AsyncSession) -> DealCESStageOption:
+    result = await db.execute(select(DealCESStageOption).where(DealCESStageOption.id == stage_id))
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="CES stage not found")
+    return row
+
+
 async def _resolve_customer_for_company(name: str, customer_id: Optional[int], db: AsyncSession) -> Customer:
     company_name = _normalize_name(name)
 
@@ -168,12 +188,14 @@ async def _get_bundle(db: AsyncSession, active_only: bool) -> DealMasterDataBund
     companies = await _list_companies(db, active_only)
     product_system_types = await _list_product_system_types(db, active_only)
     project_statuses = await _list_project_statuses(db, active_only)
+    ces_stages = await _list_ces_stages(db, active_only)
 
     return DealMasterDataBundleOut(
         customer_types=[DealCustomerTypeOut.model_validate(row) for row in customer_types],
         companies=[_to_company_out(row) for row in companies],
         product_system_types=[DealProductSystemTypeOut.model_validate(row) for row in product_system_types],
         project_statuses=[DealProjectStatusOptionOut.model_validate(row) for row in project_statuses],
+        ces_stages=[DealCESStageOptionOut.model_validate(row) for row in ces_stages],
     )
 
 
@@ -386,3 +408,43 @@ async def update_project_status(
     await db.commit()
     await db.refresh(row)
     return DealProjectStatusOptionOut.model_validate(row)
+
+
+@router.post("/ces-stages", response_model=DealCESStageOptionOut, status_code=201)
+async def create_ces_stage(
+    payload: DealCESStageOptionCreate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles("admin", "manager")),
+):
+    label = _normalize_name(payload.label)
+    key = _slugify(payload.key or label)
+    row = DealCESStageOption(
+        key=key,
+        label=label,
+        sort_order=payload.sort_order,
+        is_active=payload.is_active,
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return DealCESStageOptionOut.model_validate(row)
+
+
+@router.put("/ces-stages/{stage_id}", response_model=DealCESStageOptionOut)
+async def update_ces_stage(
+    stage_id: int,
+    payload: DealCESStageOptionUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles("admin", "manager")),
+):
+    row = await _get_ces_stage_or_404(stage_id, db)
+    updates = payload.model_dump(exclude_none=True)
+    if "label" in updates:
+        updates["label"] = _normalize_name(updates["label"])
+    if "key" in updates:
+        updates["key"] = _slugify(updates["key"])
+    for field, value in updates.items():
+        setattr(row, field, value)
+    await db.commit()
+    await db.refresh(row)
+    return DealCESStageOptionOut.model_validate(row)

@@ -97,6 +97,22 @@ class DealProjectStatusOption(Base):
     )
 
 
+class DealCESStageOption(Base):
+    __tablename__ = "deal_ces_stage_options"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(60), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
 class DealProductSystemLink(Base):
     __tablename__ = "deal_product_system_links"
 

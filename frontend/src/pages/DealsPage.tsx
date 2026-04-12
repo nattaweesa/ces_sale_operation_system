@@ -30,7 +30,7 @@ const KANBAN_COLUMNS = [
   { key: "lost", label: "Lost", color: "bg-[#ff8aa0]" },
 ];
 
-const STAGE_OPTIONS = [
+const DEFAULT_CES_STAGE_OPTIONS = [
   { value: "lead", label: "Lead / Discovery" },
   { value: "qualified", label: "Qualified" },
   { value: "proposal", label: "Proposal" },
@@ -44,11 +44,6 @@ const DEFAULT_PROJECT_STATUS_OPTIONS = [
   { value: "bidding", label: "Bidding" },
   { value: "award", label: "Award" },
   { value: "on_hold", label: "On Hold" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "open", label: "Open (Legacy)" },
-  { value: "won", label: "Won" },
-  { value: "lost", label: "Lost" },
 ];
 
 const PROJECT_STATUS_STYLES: Record<string, string> = {
@@ -117,6 +112,7 @@ export default function DealsPage() {
   const [customerTypes, setCustomerTypes] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [productSystemTypes, setProductSystemTypes] = useState<any[]>([]);
+  const [cesStageOptions, setCesStageOptions] = useState(DEFAULT_CES_STAGE_OPTIONS);
   const [projectStatusOptions, setProjectStatusOptions] = useState(DEFAULT_PROJECT_STATUS_OPTIONS);
 
   const [openDeal, setOpenDeal] = useState(false);
@@ -155,6 +151,9 @@ export default function DealsPage() {
     setCustomerTypes(res.data.customer_types || []);
     setCompanies(res.data.companies || []);
     setProductSystemTypes(res.data.product_system_types || []);
+    setCesStageOptions(
+      (res.data.ces_stages || []).map((item) => ({ value: item.key, label: item.label }))
+    );
     setProjectStatusOptions(
       (res.data.project_statuses || []).map((item) => ({ value: item.key, label: item.label }))
     );
@@ -514,6 +513,11 @@ export default function DealsPage() {
     return DEFAULT_PROJECT_STATUS_OPTIONS;
   }, [projectStatusOptions]);
 
+  const stageOptions = useMemo(() => {
+    if (cesStageOptions.length > 0) return cesStageOptions;
+    return DEFAULT_CES_STAGE_OPTIONS;
+  }, [cesStageOptions]);
+
   const formatProjectStatus = (status?: string) => {
     if (!status) return "Design";
     return projectStatusLabelMap[status] || status.replace(/_/g, " ");
@@ -834,7 +838,7 @@ export default function DealsPage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
             <Form.Item name="deal_cycle_stage" label="CES Stage" rules={[{ required: true }]}>
-              <Select options={STAGE_OPTIONS} />
+              <Select options={stageOptions} />
             </Form.Item>
             <Form.Item name="status" label="Project Status" rules={[{ required: true }]}>
               <Select options={statusOptions} />
@@ -983,7 +987,7 @@ export default function DealsPage() {
                 </Form.Item>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <Form.Item name="deal_cycle_stage" label="Move CES Stage to (optional)">
-                    <Select allowClear placeholder="Keep current CES stage" options={STAGE_OPTIONS} />
+                    <Select allowClear placeholder="Keep current CES stage" options={stageOptions} />
                   </Form.Item>
                   <Form.Item name="status" label="Project Status (optional)">
                     <Select allowClear placeholder="Keep current project status" options={statusOptions} />

@@ -18,13 +18,14 @@ import { EditOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   dealMasterDataApi,
   DealMasterDataBundle,
+  DealMasterDataCESStage,
   DealMasterDataCompany,
   DealMasterDataCustomerType,
   DealMasterDataProductSystemType,
   DealMasterDataProjectStatus,
 } from "../api";
 
-type ModalType = "customer-type" | "company" | "product-system" | "project-status" | null;
+type ModalType = "customer-type" | "company" | "product-system" | "project-status" | "ces-stage" | null;
 
 export default function DealMasterDataPage() {
   const [data, setData] = useState<DealMasterDataBundle>({
@@ -32,6 +33,7 @@ export default function DealMasterDataPage() {
     companies: [],
     product_system_types: [],
     project_statuses: [],
+    ces_stages: [],
   });
   const [loading, setLoading] = useState(false);
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -90,6 +92,10 @@ export default function DealMasterDataPage() {
         if (editingRecord) await dealMasterDataApi.updateProjectStatus(editingRecord.id, values);
         else await dealMasterDataApi.createProjectStatus(values);
       }
+      if (modalType === "ces-stage") {
+        if (editingRecord) await dealMasterDataApi.updateCESStage(editingRecord.id, values);
+        else await dealMasterDataApi.createCESStage(values);
+      }
       message.success(editingRecord ? "Updated" : "Created");
       closeModal();
       load();
@@ -107,6 +113,7 @@ export default function DealMasterDataPage() {
     company: editingRecord ? "Edit Company" : "New Company",
     "product-system": editingRecord ? "Edit Product/System Type" : "New Product/System Type",
     "project-status": editingRecord ? "Edit Project Status" : "New Project Status",
+    "ces-stage": editingRecord ? "Edit CES Stage" : "New CES Stage",
   };
 
   return (
@@ -216,6 +223,30 @@ export default function DealMasterDataPage() {
         />
       </Card>
 
+      <Card
+        title="CES Stages"
+        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("ces-stage")}>New</Button>}
+      >
+        <Table<DealMasterDataCESStage>
+          rowKey="id"
+          loading={loading}
+          pagination={false}
+          size="small"
+          dataSource={data.ces_stages}
+          columns={[
+            { title: "Label", dataIndex: "label" },
+            { title: "Key", dataIndex: "key", width: 180 },
+            { title: "Sort", dataIndex: "sort_order", width: 90 },
+            { title: "Status", dataIndex: "is_active", width: 110, render: renderState },
+            {
+              title: "",
+              width: 80,
+              render: (_: unknown, record) => <Button icon={<EditOutlined />} size="small" onClick={() => openModal("ces-stage", record)} />,
+            },
+          ]}
+        />
+      </Card>
+
       <Modal
         open={modalType !== null}
         title={modalType ? modalTitleMap[modalType] : ""}
@@ -275,6 +306,23 @@ export default function DealMasterDataPage() {
                 <Input />
               </Form.Item>
               <Form.Item name="key" label="Status Key">
+                <Input placeholder="auto-generated if left blank" />
+              </Form.Item>
+              <Form.Item name="sort_order" label="Sort Order">
+                <InputNumber style={{ width: "100%" }} />
+              </Form.Item>
+              <Form.Item name="is_active" label="Active" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </>
+          )}
+
+          {modalType === "ces-stage" && (
+            <>
+              <Form.Item name="label" label="Stage Label" rules={[{ required: true }]}> 
+                <Input />
+              </Form.Item>
+              <Form.Item name="key" label="Stage Key">
                 <Input placeholder="auto-generated if left blank" />
               </Form.Item>
               <Form.Item name="sort_order" label="Sort Order">

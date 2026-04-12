@@ -277,11 +277,20 @@ export interface DealMasterDataProjectStatus {
   is_active: boolean;
 }
 
+export interface DealMasterDataCESStage {
+  id: number;
+  key: string;
+  label: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
 export interface DealMasterDataBundle {
   customer_types: DealMasterDataCustomerType[];
   companies: DealMasterDataCompany[];
   product_system_types: DealMasterDataProductSystemType[];
   project_statuses: DealMasterDataProjectStatus[];
+  ces_stages: DealMasterDataCESStage[];
 }
 
 export const dealMasterDataApi = {
@@ -307,6 +316,10 @@ export const dealMasterDataApi = {
     api.post<DealMasterDataProjectStatus>("/deal-master-data/project-statuses", data),
   updateProjectStatus: (id: number, data: { key?: string; label?: string; sort_order?: number; is_active?: boolean }) =>
     api.put<DealMasterDataProjectStatus>(`/deal-master-data/project-statuses/${id}`, data),
+  createCESStage: (data: { key?: string; label: string; sort_order?: number; is_active?: boolean }) =>
+    api.post<DealMasterDataCESStage>("/deal-master-data/ces-stages", data),
+  updateCESStage: (id: number, data: { key?: string; label?: string; sort_order?: number; is_active?: boolean }) =>
+    api.put<DealMasterDataCESStage>(`/deal-master-data/ces-stages/${id}`, data),
 };
 
 export const sourcingApi = {

@@ -10,6 +10,7 @@ from app.models.deal_master import (
     DealCompany,
     DealProductSystemType,
     DealProjectStatusOption,
+    DealCESStageOption,
     DealProductSystemLink,
 )
 from app.models.project import Project
@@ -64,7 +65,7 @@ __all__ = [
     "Brand", "Category",
     "Product", "ProductAttachment",
     "Customer", "Contact",
-    "DealCustomerType", "DealCompany", "DealProductSystemType", "DealProjectStatusOption", "DealProductSystemLink",
+    "DealCustomerType", "DealCompany", "DealProductSystemType", "DealProjectStatusOption", "DealCESStageOption", "DealProductSystemLink",
     "Project",
     "BOQ", "BOQItem",
     "Quotation", "QuotationSection", "QuotationLine", "QuotationRevision",

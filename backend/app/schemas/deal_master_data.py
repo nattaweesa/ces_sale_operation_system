@@ -114,8 +114,39 @@ class DealProjectStatusOptionOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DealCESStageOptionBase(BaseModel):
+    label: str
+    key: Optional[str] = None
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class DealCESStageOptionCreate(DealCESStageOptionBase):
+    pass
+
+
+class DealCESStageOptionUpdate(BaseModel):
+    label: Optional[str] = None
+    key: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class DealCESStageOptionOut(BaseModel):
+    id: int
+    key: str
+    label: str
+    sort_order: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class DealMasterDataBundleOut(BaseModel):
     customer_types: list[DealCustomerTypeOut]
     companies: list[DealCompanyOut]
     product_system_types: list[DealProductSystemTypeOut]
     project_statuses: list[DealProjectStatusOptionOut]
+    ces_stages: list[DealCESStageOptionOut]
