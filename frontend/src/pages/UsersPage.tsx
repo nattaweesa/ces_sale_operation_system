@@ -182,26 +182,35 @@ export default function UsersPage() {
               options={departments.map((dep) => ({ value: dep.id, label: dep.name }))}
             />
           </Form.Item>
-          <Form.Item
-            name="active_department_id"
-            label="Active Department"
-            dependencies={["department_ids"]}
-            rules={[
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  const ids = (getFieldValue("department_ids") || []) as number[];
-                  if (value == null || value === undefined) return Promise.resolve();
-                  if (ids.includes(value)) return Promise.resolve();
-                  return Promise.reject(new Error("Active department must be in allowed departments"));
-                },
-              }),
-            ]}
-          >
-            <Select
-              allowClear
-              placeholder="Select active department"
-              options={departments.map((dep) => ({ value: dep.id, label: dep.name }))}
-            />
+          <Form.Item dependencies={["department_ids"]} noStyle>
+            {({ getFieldValue }) => {
+              const selectedIds: number[] = getFieldValue("department_ids") || [];
+              const allowedOptions = departments.filter((dep) => selectedIds.includes(dep.id)).map((dep) => ({ value: dep.id, label: dep.name }));
+              return (
+                <Form.Item
+                  name="active_department_id"
+                  label="Active Department"
+                  dependencies={["department_ids"]}
+                  rules={[
+                    ({ getFieldValue: gfv }) => ({
+                      validator(_, value) {
+                        const ids = (gfv("department_ids") || []) as number[];
+                        if (value == null || value === undefined) return Promise.resolve();
+                        if (ids.includes(value)) return Promise.resolve();
+                        return Promise.reject(new Error("Active department must be in allowed departments"));
+                      },
+                    }),
+                  ]}
+                >
+                  <Select
+                    allowClear
+                    placeholder={selectedIds.length === 0 ? "Select allowed departments first" : "Select active department"}
+                    options={allowedOptions}
+                    disabled={selectedIds.length === 0}
+                  />
+                </Form.Item>
+              );
+            }}
           </Form.Item>
           <Form.Item name="full_name" label="Full Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="email" label="Email"><Input /></Form.Item>
