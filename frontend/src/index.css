@@ -151,89 +151,172 @@ h1, h2, h3, h4, .font-headline {
   -webkit-backdrop-filter: blur(24px);
 }
 
-/* Classic theme fixes for pages that still contain Atrium hardcoded utility colors */
-[data-theme="classic"] .deals-dashboard-page,
-[data-theme="classic"] .deals-funnel-page {
-  color: rgb(var(--on-surface));
-}
+/* ============================================================
+   Classic theme — global override for all Atrium Dark hardcoded
+   utility colors across every page and component.
+   ============================================================ */
 
-[data-theme="classic"] .deals-dashboard-page .text-\[\#dbe3ff\],
-[data-theme="classic"] .deals-dashboard-page .text-\[\#e5ebff\],
-[data-theme="classic"] .deals-funnel-page .text-\[\#dbe3ff\] {
-  color: rgb(var(--on-surface)) !important;
-}
-
-[data-theme="classic"] .deals-dashboard-page .text-\[\#97a6c9\],
-[data-theme="classic"] .deals-dashboard-page .text-\[\#9fb0d2\],
-[data-theme="classic"] .deals-funnel-page .text-\[\#97a6c9\],
-[data-theme="classic"] .deals-funnel-page .text-\[\#9fb0d2\] {
-  color: rgb(var(--on-surface-variant)) !important;
-}
-
-[data-theme="classic"] .deals-dashboard-page .bg-\[\#101d3b\],
-[data-theme="classic"] .deals-dashboard-page .bg-\[\#0f1d3b\],
-[data-theme="classic"] .deals-dashboard-page .bg-\[\#0b1731\],
-[data-theme="classic"] .deals-funnel-page .bg-\[\#101d3b\] {
+/* --- Dark navy backgrounds → surface tokens --- */
+[data-theme="classic"] .bg-\[\#020817\],
+[data-theme="classic"] .bg-\[\#030a1a\],
+[data-theme="classic"] .bg-\[\#081633\],
+[data-theme="classic"] .bg-\[\#09142b\],
+[data-theme="classic"] .bg-\[\#091632\],
+[data-theme="classic"] .bg-\[\#091735\],
+[data-theme="classic"] .bg-\[\#0b1731\],
+[data-theme="classic"] .bg-\[\#0f1d3b\],
+[data-theme="classic"] .bg-\[\#101d3b\],
+[data-theme="classic"] .bg-\[\#111e3d\] {
   background-color: rgb(var(--surface-container-lowest)) !important;
 }
 
-[data-theme="classic"] .deals-dashboard-page .border-\[\#1f3159\],
-[data-theme="classic"] .deals-dashboard-page .border-\[\#223861\],
-[data-theme="classic"] .deals-dashboard-page .border-\[\#233861\],
-[data-theme="classic"] .deals-funnel-page .border-\[\#1f3159\],
-[data-theme="classic"] .deals-funnel-page .border-\[\#233861\] {
+[data-theme="classic"] .bg-\[\#132348\],
+[data-theme="classic"] .bg-\[\#1a2747\],
+[data-theme="classic"] .bg-\[\#1a2848\],
+[data-theme="classic"] .bg-\[\#1a2b45\],
+[data-theme="classic"] .bg-\[\#1a2b4d\],
+[data-theme="classic"] .bg-\[\#1a3d4a\],
+[data-theme="classic"] .bg-\[\#1f2d5a\],
+[data-theme="classic"] .bg-\[\#1f3159\],
+[data-theme="classic"] .bg-\[\#223861\],
+[data-theme="classic"] .bg-\[\#233861\],
+[data-theme="classic"] .bg-\[\#243a67\],
+[data-theme="classic"] .bg-\[\#26225a\],
+[data-theme="classic"] .bg-\[\#273a1a\],
+[data-theme="classic"] .bg-\[\#2a1320\],
+[data-theme="classic"] .bg-\[\#2a2a2a\],
+[data-theme="classic"] .bg-\[\#2a3f73\],
+[data-theme="classic"] .bg-\[\#3a1f2a\],
+[data-theme="classic"] .bg-\[\#3a2a1a\],
+[data-theme="classic"] .bg-\[\#11372f\] {
+  background-color: rgb(var(--surface-container-low)) !important;
+}
+
+/* --- Colored accent backgrounds → neutral surface in classic --- */
+[data-theme="classic"] .bg-\[\#6bffc1\],
+[data-theme="classic"] .bg-\[\#76c4ff\],
+[data-theme="classic"] .bg-\[\#7f91b9\],
+[data-theme="classic"] .bg-\[\#8d95ff\],
+[data-theme="classic"] .bg-\[\#8e95ff\],
+[data-theme="classic"] .bg-\[\#8f95ff\],
+[data-theme="classic"] .bg-\[\#c8a6ff\],
+[data-theme="classic"] .bg-\[\#ffc074\],
+[data-theme="classic"] .bg-\[\#ff8aa0\] {
+  background-color: rgb(var(--surface-container)) !important;
+}
+
+/* --- Hover backgrounds --- */
+[data-theme="classic"] .hover\:bg-\[\#111e3d\]:hover,
+[data-theme="classic"] .hover\:bg-\[\#132348\]:hover,
+[data-theme="classic"] .hover\:bg-\[\#1f3159\]:hover,
+[data-theme="classic"] .hover\:bg-\[\#2a1320\]:hover,
+[data-theme="classic"] .hover\:bg-\[\#6bffc1\]:hover,
+[data-theme="classic"] .hover\:bg-\[\#76c4ff\]:hover,
+[data-theme="classic"] .hover\:bg-\[\#8f95ff\]:hover {
+  background-color: rgb(var(--surface-container)) !important;
+}
+
+/* --- Dark borders → outline-variant --- */
+[data-theme="classic"] .border-\[\#162649\],
+[data-theme="classic"] .border-\[\#17284c\],
+[data-theme="classic"] .border-\[\#1d2f56\],
+[data-theme="classic"] .border-\[\#1d3159\],
+[data-theme="classic"] .border-\[\#1f3158\],
+[data-theme="classic"] .border-\[\#1f3159\],
+[data-theme="classic"] .border-\[\#20345e\],
+[data-theme="classic"] .border-\[\#22345d\],
+[data-theme="classic"] .border-\[\#223861\],
+[data-theme="classic"] .border-\[\#233861\],
+[data-theme="classic"] .border-\[\#5d2a39\],
+[data-theme="classic"] .border-\[\#7781ff\],
+[data-theme="classic"] .border-\[\#8b92ff\] {
   border-color: rgb(var(--outline-variant)) !important;
 }
 
-[data-theme="classic"] .deals-dashboard-page .dashboard-filter-select {
+/* --- Light text on dark (was readable on dark bg) → on-surface --- */
+[data-theme="classic"] .text-\[\#dbe2ff\],
+[data-theme="classic"] .text-\[\#dbe3ff\],
+[data-theme="classic"] .text-\[\#dee5ff\],
+[data-theme="classic"] .text-\[\#e5eaff\],
+[data-theme="classic"] .text-\[\#e5ebff\],
+[data-theme="classic"] .text-\[\#e8edff\] {
+  color: rgb(var(--on-surface)) !important;
+}
+
+/* --- Muted blue-grey text → on-surface-variant --- */
+[data-theme="classic"] .text-\[\#7f8aad\],
+[data-theme="classic"] .text-\[\#8f9abe\],
+[data-theme="classic"] .text-\[\#97a6c9\],
+[data-theme="classic"] .text-\[\#98a5c8\],
+[data-theme="classic"] .text-\[\#9ba6c8\],
+[data-theme="classic"] .text-\[\#9ea7c9\],
+[data-theme="classic"] .text-\[\#9fa9c8\],
+[data-theme="classic"] .text-\[\#9fb0d2\],
+[data-theme="classic"] .text-\[\#a4aecf\],
+[data-theme="classic"] .text-\[\#a7b0cc\],
+[data-theme="classic"] .text-\[\#c5d0e8\],
+[data-theme="classic"] .text-\[\#d5dcfb\] {
+  color: rgb(var(--on-surface-variant)) !important;
+}
+
+/* --- Neon accent text → semantic classic equivalents --- */
+[data-theme="classic"] .text-\[\#6bffc1\],
+[data-theme="classic"] .text-\[\#76c4ff\],
+[data-theme="classic"] .text-\[\#76e4ff\],
+[data-theme="classic"] .text-\[\#8fd3ff\],
+[data-theme="classic"] .text-\[\#a6d8ff\] {
+  color: rgb(var(--tertiary)) !important;
+}
+
+[data-theme="classic"] .text-\[\#ff8aa0\],
+[data-theme="classic"] .text-\[\#ff8ba1\],
+[data-theme="classic"] .text-\[\#ffb7c4\] {
+  color: rgb(var(--error)) !important;
+}
+
+[data-theme="classic"] .text-\[\#9fa4ff\],
+[data-theme="classic"] .text-\[\#a8b0ff\],
+[data-theme="classic"] .text-\[\#c8a6ff\] {
+  color: rgb(var(--secondary)) !important;
+}
+
+[data-theme="classic"] .text-\[\#ffc074\],
+[data-theme="classic"] .text-\[\#ffc874\],
+[data-theme="classic"] .text-\[\#ffd9a8\],
+[data-theme="classic"] .text-\[\#ffb74d\],
+[data-theme="classic"] .text-\[\#c4ff76\] {
+  color: rgb(var(--on-surface-variant)) !important;
+}
+
+/* --- Very dark navy text (dark-on-dark accent) → on-surface --- */
+[data-theme="classic"] .text-\[\#0e154a\],
+[data-theme="classic"] .text-\[\#0f154b\],
+[data-theme="classic"] .text-\[\#10184f\],
+[data-theme="classic"] .text-\[\#111a55\] {
+  color: rgb(var(--on-surface)) !important;
+}
+
+/* --- Hover text variants --- */
+[data-theme="classic"] .hover\:text-\[\#0f154b\]:hover,
+[data-theme="classic"] .hover\:text-\[\#dbe2ff\]:hover,
+[data-theme="classic"] .hover\:text-\[\#a6d8ff\]:hover {
+  color: rgb(var(--on-surface)) !important;
+}
+
+/* --- Filter select & refresh button (dashboard) --- */
+[data-theme="classic"] .dashboard-filter-select {
   background-color: rgb(var(--surface)) !important;
   color: rgb(var(--on-surface)) !important;
   border-color: rgb(var(--outline-variant)) !important;
 }
 
-[data-theme="classic"] .deals-dashboard-page .dashboard-refresh-btn {
+[data-theme="classic"] .dashboard-refresh-btn {
   background: rgb(var(--primary)) !important;
   color: rgb(var(--on-primary)) !important;
 }
 
-[data-theme="classic"] .deals-dashboard-page .bg-\[\#3a1f2a\],
-[data-theme="classic"] .deals-dashboard-page .bg-\[\#1a2b45\],
-[data-theme="classic"] .deals-dashboard-page .bg-\[\#1a2848\],
-[data-theme="classic"] .deals-dashboard-page .bg-\[\#11372f\],
-[data-theme="classic"] .deals-dashboard-page .bg-\[\#09142b\] {
-  background-color: rgb(var(--surface-container-low)) !important;
-}
-
-[data-theme="classic"] .deals-dashboard-page .hover\:bg-\[\#132348\]:hover {
-  background-color: rgb(var(--surface-container)) !important;
-}
-
-[data-theme="classic"] .deals-dashboard-page .border-\[\#5d2a39\] {
-  border-color: rgb(var(--outline-variant)) !important;
-}
-
-[data-theme="classic"] .deals-dashboard-page .text-\[\#ffb7c4\],
-[data-theme="classic"] .deals-dashboard-page .text-\[\#ff8aa0\],
-[data-theme="classic"] .deals-dashboard-page .text-\[\#8fd3ff\],
-[data-theme="classic"] .deals-dashboard-page .text-\[\#6bffc1\] {
-  color: rgb(var(--on-surface)) !important;
-}
-
-[data-theme="classic"] .deals-funnel-page .bg-\[\#1a2848\],
-[data-theme="classic"] .deals-funnel-page .hover\:bg-\[\#1f3159\]:hover,
-[data-theme="classic"] .deals-funnel-page .bg-\[\#1f3159\] {
-  background-color: rgb(var(--surface-container-low)) !important;
-}
-
-[data-theme="classic"] .deals-funnel-page .text-\[\#0f154b\],
-[data-theme="classic"] .deals-funnel-page .text-white {
-  color: rgb(var(--on-surface)) !important;
-}
-
-[data-theme="classic"] .deals-funnel-page .bg-primary-container {
-  background-color: rgb(var(--primary)) !important;
-}
-
-[data-theme="classic"] .deals-funnel-page .bg-primary-container.text-white {
-  color: rgb(var(--on-primary)) !important;
+/* --- Funnel page bg-primary-container pill --- */
+[data-theme="classic"] .bg-primary-container {
+  background-color: rgb(var(--primary-fixed)) !important;
+  color: rgb(var(--on-primary-fixed)) !important;
 }
