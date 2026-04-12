@@ -17,7 +17,7 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import { CheckOutlined, PlusOutlined } from "@ant-design/icons";
-import { boqsApi, dealMasterDataApi, dealsApi, projectsApi, usersApi } from "../api";
+import { boqsApi, dealMasterDataApi, dealsApi, departmentsApi, projectsApi, usersApi } from "../api";
 import { useAuthStore } from "../store/authStore";
 import { formatTHBCompact, numberInputFormatter, numberInputParser } from "../utils/currency";
 
@@ -147,6 +147,8 @@ export default function DealsPage() {
   const [creatingBoqDealId, setCreatingBoqDealId] = useState<number | null>(null);
   const [projectSearch, setProjectSearch] = useState(() => localStorage.getItem(DEALS_SEARCH_STORAGE_KEY) || "");
   const [ownerIdFilter, setOwnerIdFilter] = useState<number | null>(null);
+  const [departmentIdFilter, setDepartmentIdFilter] = useState<number | null>(null);
+  const [departmentOptions, setDepartmentOptions] = useState<{ id: number; name: string }[]>([]);
 
   const loadMasterData = async () => {
     const res = await dealMasterDataApi.options();
@@ -163,8 +165,9 @@ export default function DealsPage() {
       const [p] = await Promise.all([projectsApi.list(), loadMasterData()]);
       setProjects(p.data);
       if (isManager) {
-        const u = await usersApi.list();
+        const [u, d] = await Promise.all([usersApi.list(), departmentsApi.list()]);
         setOwners(u.data || []);
+        setDepartmentOptions((d.data || []).map((dep: any) => ({ id: dep.id, name: dep.name })));
       }
     } catch {
       message.error("Unable to load reference data.");
@@ -174,7 +177,10 @@ export default function DealsPage() {
   const loadDeals = async () => {
     setLoading(true);
     try {
-      const r = await dealsApi.list(isManager && ownerIdFilter ? { owner_id: ownerIdFilter } : undefined);
+      const params: { owner_id?: number; department_id?: number } = {};
+      if (isManager && ownerIdFilter) params.owner_id = ownerIdFilter;
+      if (isManager && departmentIdFilter) params.department_id = departmentIdFilter;
+      const r = await dealsApi.list(Object.keys(params).length ? params : undefined);
       setDeals(r.data || []);
     } catch {
       message.error("Unable to load deals.");
@@ -191,7 +197,7 @@ export default function DealsPage() {
   useEffect(() => {
     if (!isManager) return;
     loadDeals();
-  }, [ownerIdFilter]);
+  }, [ownerIdFilter, departmentIdFilter]);
 
   const openCreate = () => {
     setEditingDeal(null);
@@ -582,6 +588,16 @@ export default function DealsPage() {
           className="max-w-md"
           prefix={<span className="material-symbols-outlined text-base text-slate-400">search</span>}
         />
+        {isManager && (
+          <Select
+            allowClear
+            style={{ minWidth: 200 }}
+            placeholder="Department: All"
+            value={departmentIdFilter ?? undefined}
+            options={departmentOptions.map((d) => ({ value: d.id, label: d.name }))}
+            onChange={(value) => setDepartmentIdFilter(value ?? null)}
+          />
+        )}
         {isManager && (
           <Select
             allowClear

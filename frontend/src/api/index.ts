@@ -227,7 +227,7 @@ export const departmentsApi = {
 };
 
 export const dealsApi = {
-  list: (params?: { owner_id?: number; stage?: string; status?: string }) => api.get("/deals", { params }),
+  list: (params?: { owner_id?: number; department_id?: number; stage?: string; status?: string }) => api.get("/deals", { params }),
   get: (id: number) => api.get(`/deals/${id}`),
   create: (data: unknown) => api.post("/deals", data),
   update: (id: number, data: unknown) => api.put(`/deals/${id}`, data),

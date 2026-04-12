@@ -161,6 +161,7 @@ async def _prepare_deal_master_data(
 @router.get("", response_model=list[DealOut])
 async def list_deals(
     owner_id: Optional[int] = Query(None),
+    department_id: Optional[int] = Query(None),
     stage: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -184,6 +185,8 @@ async def list_deals(
     if await can_user(db, current_user, "deals.view_all"):
         if owner_id:
             stmt = stmt.where(Deal.owner_id == owner_id)
+        if department_id is not None:
+            stmt = stmt.where(Deal.department_id == department_id)
     else:
         stmt = stmt.where(Deal.owner_id == current_user.id)
 
