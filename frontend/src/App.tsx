@@ -32,6 +32,7 @@ import QuotationV2Page from "./pages/QuotationV2Page";
 import V2OverviewPage from "./pages/V2OverviewPage";
 import AIChatPage from "./pages/AIChatPage";
 import AdminAISettingsPage from "./pages/AdminAISettingsPage";
+import AIKnowledgePage from "./pages/AIKnowledgePage";
 import { useThemeStore } from "./store/themeStore";
 import { getAppThemeDefinition } from "./theme/themes";
 
@@ -207,6 +208,7 @@ export default function App() {
             <Route path="admin/user-sessions" element={<RequireRoles roles={["admin"]}><UserSessionsPage /></RequireRoles>} />
             <Route path="admin/quotation-master-data" element={<RequireRoles roles={["admin", "manager"]}><QuotationMasterDataPage /></RequireRoles>} />
             <Route path="admin/deal-master-data" element={<RequireRoles roles={["admin", "manager"]}><DealMasterDataPage /></RequireRoles>} />
+            <Route path="admin/ai-knowledge" element={<RequireRoles roles={["admin", "manager"]}><AIKnowledgePage /></RequireRoles>} />
             <Route path="admin/ai-settings" element={<RequireRoles roles={["admin"]}><AdminAISettingsPage /></RequireRoles>} />
             <Route path="ai-chat" element={<RequireRoles roles={["admin", "manager"]}><AIChatPage /></RequireRoles>} />
           </Route>

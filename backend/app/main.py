@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.database import engine, Base, AsyncSessionLocal
 from app.models import *  # noqa – ensures all models are registered
-from app.api import auth, users, brands, categories, products, customers, projects, boqs, quotations, material_approval, deals, sourcing, quotation_intake, master_data_ingestion, boq_pricing_v2, role_permissions, quotation_master_data, quotation_uploads, deal_master_data, departments
+from app.api import auth, users, brands, categories, products, customers, projects, boqs, quotations, material_approval, deals, sourcing, quotation_intake, master_data_ingestion, boq_pricing_v2, role_permissions, quotation_master_data, quotation_uploads, deal_master_data, departments, ai_knowledge
 from app.api import admin_activity
 from app.api import ai_chat
 from app.api import ai_settings
@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
             await conn.run_sync(Base.metadata.create_all)
 
     # Create storage directories
-    for sub in ("attachments", "quotations", "material_approvals", "uploaded_quotations", "master_data_ingestion"):
+    for sub in ("attachments", "quotations", "material_approvals", "uploaded_quotations", "master_data_ingestion", "ai_knowledge"):
         os.makedirs(os.path.join(settings.storage_path, sub), exist_ok=True)
 
     # Seed default admin user only in non-production environments.
@@ -88,6 +88,7 @@ app.include_router(departments.router)
 app.include_router(admin_activity.router)
 app.include_router(ai_chat.router)
 app.include_router(ai_settings.router)
+app.include_router(ai_knowledge.router)
 
 
 @app.get("/health")

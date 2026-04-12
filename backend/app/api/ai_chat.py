@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 
 from app.database import get_db
 from app.models.deal import Deal
+from app.models.ai_knowledge import AIKnowledgeDocument
 from app.models.user import User
 from app.services.ai_settings import resolve_minimax_runtime_config
 from app.services.auth import require_roles
@@ -170,6 +171,69 @@ def _fmt(value) -> str:
         return "0"
 
 
+def _tokenize_query(text: str) -> list[str]:
+    terms: list[str] = []
+    for raw in (text or "").lower().split():
+        t = "".join(ch for ch in raw if ch.isalnum() or ch in "_-")
+        if len(t) >= 2 and t not in terms:
+            terms.append(t)
+    return terms[:10]
+
+
+def _build_snippet(content: str, terms: list[str], max_len: int = 500) -> str:
+    lower = content.lower()
+    start = 0
+    for t in terms:
+        idx = lower.find(t)
+        if idx >= 0:
+            start = max(0, idx - 120)
+            break
+    end = min(len(content), start + max_len)
+    snippet = content[start:end].strip()
+    return snippet + ("..." if end < len(content) else "")
+
+
+async def _fetch_knowledge_context(db: AsyncSession, user_query: str) -> str:
+    terms = _tokenize_query(user_query)
+    rows = (
+        await db.execute(
+            select(AIKnowledgeDocument)
+            .where(AIKnowledgeDocument.is_active == True)
+            .order_by(AIKnowledgeDocument.updated_at.desc())
+            .limit(120)
+        )
+    ).scalars().all()
+
+    if not rows:
+        return ""
+
+    ranked: list[tuple[int, AIKnowledgeDocument]] = []
+    for doc in rows:
+        content_lower = (doc.content_text or "").lower()
+        title_lower = (doc.title or "").lower()
+        if terms:
+            score = sum(content_lower.count(t) for t in terms) + 3 * sum(title_lower.count(t) for t in terms)
+            if score <= 0:
+                continue
+        else:
+            score = 1
+        ranked.append((score, doc))
+
+    if not ranked:
+        return ""
+
+    ranked.sort(key=lambda x: x[0], reverse=True)
+    top_docs = ranked[:3]
+
+    lines: list[str] = ["=== คู่มือ/เอกสารอ้างอิงเพิ่มเติม (AI Knowledge) ==="]
+    for score, doc in top_docs:
+        snippet = _build_snippet(doc.content_text or "", terms)
+        lines.append(f"- เอกสาร: {doc.title} | source: {doc.source_filename} | score: {score}")
+        lines.append(f"  เนื้อหาบางส่วน: {snippet}")
+
+    return "\n".join(lines)
+
+
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
 @router.post("/query", response_model=AIChatResponse)
@@ -189,13 +253,19 @@ async def ai_chat_query(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to fetch system context: {exc}")
 
+    try:
+        knowledge_context = await _fetch_knowledge_context(db, request.message)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch AI knowledge context: {exc}")
+
     system_prompt = (
         "คุณคือ AI Assistant ของระบบ CES Sale Operation ซึ่งเป็นระบบ CRM / Sales Pipeline ของบริษัท CES Electrical Solutions\n"
-        "คุณตอบได้เฉพาะคำถามที่เกี่ยวกับข้อมูลในระบบนี้เท่านั้น เช่น Deals, Pipeline, CES Stage, Project Status, Owner, มูลค่า, ลูกค้า ฯลฯ\n"
-        "ถ้าถามเรื่องที่ไม่เกี่ยวกับระบบนี้ ให้ปฏิเสธอย่างสุภาพ\n"
+        "คุณตอบได้จาก 2 แหล่งข้อมูล: (1) ข้อมูลระบบสดจากฐานข้อมูล และ (2) เอกสารคู่มือที่ผู้ใช้อัปโหลดไว้ใน AI Knowledge\n"
+        "ถ้าคำถามไม่พบข้อมูลจากทั้งสองแหล่ง ให้ปฏิเสธอย่างสุภาพ\n"
         "ตอบเป็นภาษาไทยเสมอ ยกเว้นคำศัพท์เฉพาะอาจใช้ภาษาอังกฤษได้\n"
         "ให้คำตอบที่ชัดเจน กระชับ และเป็นประโยชน์\n"
         "ถ้าเป็นข้อมูลเปรียบเทียบ/หลายรายการ ให้ตอบเป็นตาราง Markdown (GFM)\n"
+        "หากอ้างอิงจากเอกสารคู่มือ ให้ระบุชื่อเอกสารที่ใช้อ้างอิงในคำตอบสั้นๆ\n"
         "นิยามข้อมูลสำคัญ: deal_cycle_stage คือ CES Stage ภายในบริษัท CES เช่น lead, qualified, proposal, negotiation, won, lost\n"
         "นิยามข้อมูลสำคัญ: status คือ Project Status ของหน้างานฝั่งลูกค้า/ผู้รับเหมา เช่น design, bidding, award, on_hold\n"
         "นิยามข้อมูลสำคัญ: expected_value คือมูลค่าคาดการณ์ที่ใช้ในระบบอยู่แล้ว ห้ามนำ expected_value ไปคูณ probability_pct ซ้ำ เว้นแต่ผู้ใช้สั่งให้คำนวณสมมติฐานใหม่อย่างชัดเจน\n"
@@ -203,6 +273,7 @@ async def ai_chat_query(
         "หากมีการคำนวณ ให้ระบุสูตรและตัวแปรที่ใช้ให้ชัดเจน และแยกผลคำนวณใหม่ออกจากค่าจริงในระบบ\n"
         "อย่าใส่ <think> หรือ reasoning ภายในคำตอบ\n\n"
         + system_context
+        + ("\n\n" + knowledge_context if knowledge_context else "")
     )
 
     # Build message list for Minimax

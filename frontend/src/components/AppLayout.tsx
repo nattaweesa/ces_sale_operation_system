@@ -46,6 +46,7 @@ const allNavItems: NavItem[] = [
       { key: "departments", label: "Departments", icon: "domain", path: "/departments" },
       { key: "admin-user-sessions", label: "User Sessions", icon: "history", path: "/admin/user-sessions" },
       { key: "admin-role-permissions", label: "Role Permissions", icon: "admin_panel_settings", path: "/admin/role-permissions" },
+      { key: "admin-ai-knowledge", label: "AI Knowledge", icon: "library_books", path: "/admin/ai-knowledge" },
       { key: "admin-quotation-master-data", label: "Quotation Master Data", icon: "dataset_linked", path: "/admin/quotation-master-data" },
       { key: "admin-deal-master-data", label: "Deal Master Data", icon: "list_alt", path: "/admin/deal-master-data" },
       { key: "admin-ai-settings", label: "AI Settings", icon: "settings_suggest", path: "/admin/ai-settings" },
@@ -86,6 +87,7 @@ function getNavItems(role?: string, perms?: Record<string, boolean>): NavItem[] 
         (c.key !== "departments" || canConfigureRoles) &&
         (c.key !== "deals-review-report" || canViewDealReview) &&
         (c.key !== "admin-role-permissions" || canConfigureRoles) &&
+        (c.key !== "admin-ai-knowledge" || canUseAiChat) &&
         (c.key !== "admin-user-sessions" || canConfigureRoles) &&
         (c.key !== "admin-ai-settings" || canConfigureRoles) &&
         (!["admin-monitor-grafana", "admin-monitor-prometheus", "admin-monitor-kuma"].includes(c.key) || canConfigureRoles)

@@ -35,6 +35,24 @@ export interface AISettingsTestOut {
   model: string;
 }
 
+export interface AIKnowledgeDocumentOut {
+  id: number;
+  title: string;
+  source_filename: string;
+  mime_type?: string | null;
+  content_chars: number;
+  is_active: boolean;
+  uploaded_by: number;
+  uploaded_by_name?: string | null;
+  created_at: string;
+}
+
+export interface AIKnowledgeUploadOut {
+  id: number;
+  title: string;
+  content_chars: number;
+}
+
 export const aiChatApi = {
   query: (data: AIChatRequest) => api.post<AIChatResponse>("/ai-chat/query", data),
 };
@@ -43,6 +61,15 @@ export const aiSettingsApi = {
   get: () => api.get<AISettingsOut>("/admin/ai-settings"),
   update: (data: AISettingsUpdateIn) => api.put<AISettingsOut>("/admin/ai-settings", data),
   test: () => api.post<AISettingsTestOut>("/admin/ai-settings/test"),
+};
+
+export const aiKnowledgeApi = {
+  listDocuments: () => api.get<AIKnowledgeDocumentOut[]>("/admin/ai-knowledge/documents"),
+  uploadDocument: (formData: FormData) =>
+    api.post<AIKnowledgeUploadOut>("/admin/ai-knowledge/documents/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  deactivateDocument: (id: number) => api.delete(`/admin/ai-knowledge/documents/${id}`),
 };
 
 export interface LoginResponse {
