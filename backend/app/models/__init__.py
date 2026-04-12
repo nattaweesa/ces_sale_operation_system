@@ -1,9 +1,17 @@
 from __future__ import annotations
 from app.models.user import User
+from app.models.department import Department, UserDepartment
 from app.models.brand import Brand
 from app.models.category import Category
 from app.models.product import Product, ProductAttachment
 from app.models.customer import Customer, Contact
+from app.models.deal_master import (
+    DealCustomerType,
+    DealCompany,
+    DealProductSystemType,
+    DealProjectStatusOption,
+    DealProductSystemLink,
+)
 from app.models.project import Project
 from app.models.boq import BOQ, BOQItem
 from app.models.quotation import (
@@ -52,10 +60,11 @@ from app.models.master_data_ingestion import (
 )
 
 __all__ = [
-    "User",
+    "User", "Department", "UserDepartment",
     "Brand", "Category",
     "Product", "ProductAttachment",
     "Customer", "Contact",
+    "DealCustomerType", "DealCompany", "DealProductSystemType", "DealProjectStatusOption", "DealProductSystemLink",
     "Project",
     "BOQ", "BOQItem",
     "Quotation", "QuotationSection", "QuotationLine", "QuotationRevision",

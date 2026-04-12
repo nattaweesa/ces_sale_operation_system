@@ -6,12 +6,13 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, exists
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.quotation import Quotation, QuotationSection, QuotationLine, QuotationRevision
 from app.models.project import Project
+from app.models.deal import Deal
 from app.models.customer import Customer, Contact
 from app.models.user import User
 from app.models.product import Product
@@ -24,11 +25,46 @@ from app.schemas.quotation import (
 )
 from app.services.auth import get_current_user
 from app.services.activity import log_activity
+from app.services.department_scope import get_allowed_department_ids
 from app.services.rbac import can_user
 from app.config import get_settings
 
 settings = get_settings()
 router = APIRouter(prefix="/quotations", tags=["quotations"])
+
+
+def _normalize_department_ids(raw_ids: Optional[list[int]]) -> list[int]:
+    if not raw_ids:
+        return []
+    return sorted({int(v) for v in raw_ids if v is not None})
+
+
+def _project_in_departments_clause(project_id_col, department_ids: list[int]):
+    return exists(
+        select(Deal.id)
+        .where(Deal.project_id == project_id_col, Deal.department_id.in_(department_ids))
+        .limit(1)
+    )
+
+
+async def _assert_project_department_access(
+    db: AsyncSession,
+    current_user: User,
+    project_id: int,
+    allowed_department_ids: set[int] | None,
+) -> None:
+    if allowed_department_ids is None:
+        return
+    if not allowed_department_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this department")
+
+    stmt = select(Project.id).where(
+        Project.id == project_id,
+        _project_in_departments_clause(Project.id, sorted(allowed_department_ids)),
+    )
+    result = await db.execute(stmt)
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=403, detail="You do not have access to this department")
 
 
 async def _load_quotation(qid: int, db: AsyncSession) -> Quotation:
@@ -49,6 +85,9 @@ async def _load_quotation(qid: int, db: AsyncSession) -> Quotation:
 
 
 async def _assert_quotation_access(db: AsyncSession, current_user: User, quotation: Quotation) -> None:
+    allowed_department_ids = await get_allowed_department_ids(db, current_user)
+    await _assert_project_department_access(db, current_user, quotation.project_id, allowed_department_ids)
+
     if await can_user(db, current_user, "quotations.view_all"):
         return
     if quotation.sales_owner_id != current_user.id:
@@ -159,9 +198,13 @@ def _snapshot_renderable(snapshot: dict) -> bool:
 async def list_quotations(
     project_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
+    department_ids: Optional[list[int]] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    allowed_department_ids = await get_allowed_department_ids(db, current_user)
+    requested_department_ids = _normalize_department_ids(department_ids)
+
     stmt = (
         select(Quotation)
         .options(
@@ -173,6 +216,16 @@ async def list_quotations(
         stmt = stmt.where(Quotation.project_id == project_id)
     if status:
         stmt = stmt.where(Quotation.status == status)
+
+    if requested_department_ids:
+        if allowed_department_ids is not None and not set(requested_department_ids).issubset(allowed_department_ids):
+            raise HTTPException(status_code=403, detail="Requested departments are outside your scope")
+        stmt = stmt.where(_project_in_departments_clause(Quotation.project_id, requested_department_ids))
+    elif allowed_department_ids is not None:
+        if not allowed_department_ids:
+            return []
+        stmt = stmt.where(_project_in_departments_clause(Quotation.project_id, sorted(allowed_department_ids)))
+
     if not await can_user(db, current_user, "quotations.view_all"):
         stmt = stmt.where(Quotation.sales_owner_id == current_user.id)
     result = await db.execute(stmt)
@@ -202,6 +255,9 @@ async def create_quotation(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    allowed_department_ids = await get_allowed_department_ids(db, current_user)
+    await _assert_project_department_access(db, current_user, payload.project_id, allowed_department_ids)
+
     qt_number = await _generate_qt_number(db)
     q = Quotation(
         quotation_number=qt_number,

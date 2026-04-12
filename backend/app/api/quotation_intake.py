@@ -4,6 +4,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
+from typing import Optional
 
 import aiofiles
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -38,7 +39,7 @@ router = APIRouter(prefix="/quotation-intake", tags=["quotation-intake"])
 ALWAYS_CUSTOMIZE_CODES = {"CP-KNX"}
 
 
-async def _load_document(document_id: int, db: AsyncSession) -> QuotationIntakeDocument | None:
+async def _load_document(document_id: int, db: AsyncSession) -> Optional[QuotationIntakeDocument]:
     return (
         await db.execute(
             select(QuotationIntakeDocument)

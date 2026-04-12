@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
+from app.models.department import UserDepartment
 from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.services.auth import verify_password, create_access_token, password_token_marker
@@ -35,10 +36,17 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
     await db.commit()
 
     token = create_access_token({"sub": str(user.id), "pwh": password_token_marker(user.password_hash)})
+    dept_rows = await db.execute(
+        select(UserDepartment.department_id).where(UserDepartment.user_id == user.id)
+    )
+    department_ids = sorted({int(v) for v in dept_rows.scalars().all()})
+
     return TokenResponse(
         access_token=token,
         user_id=user.id,
         username=user.username,
         full_name=user.full_name,
         role=user.role,
+        active_department_id=user.active_department_id,
+        department_ids=department_ids,
     )

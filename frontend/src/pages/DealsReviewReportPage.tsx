@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Alert, Card, Col, Row, Statistic, Table, Tag, Typography } from "antd";
-import { dealsApi } from "../api";
+import { Alert, Card, Col, Row, Select, Statistic, Table, Tag, Typography, theme } from "antd";
+import { dealsApi, departmentsApi } from "../api";
+import { useAuthStore } from "../store/authStore";
 import { formatTHB } from "../utils/currency";
 
 const RISK_COLORS: Record<string, string> = {
@@ -10,15 +11,30 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 export default function DealsReviewReportPage() {
+  const { token } = theme.useToken();
+  const user = useAuthStore((s) => s.user);
+  const canFilterDepartment = ["admin", "manager", "sales_admin"].includes(user?.role || "");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [departmentOptions, setDepartmentOptions] = useState<Array<{ value: number; label: string }>>([]);
+  const [departmentIdsFilter, setDepartmentIdsFilter] = useState<number[]>([]);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const r = await dealsApi.reviewReportManager();
+      if (canFilterDepartment && departmentOptions.length === 0) {
+        const depRes = await departmentsApi.list();
+        setDepartmentOptions(
+          (depRes.data || [])
+            .filter((dep: any) => dep.is_active)
+            .map((dep: any) => ({ value: Number(dep.id), label: String(dep.name) }))
+        );
+      }
+      const r = await dealsApi.reviewReportManager(
+        departmentIdsFilter.length ? { department_ids: departmentIdsFilter } : undefined
+      );
       setData(r.data);
     } catch (e: any) {
       setError(e?.response?.data?.detail || "Failed to load review report");
@@ -29,13 +45,29 @@ export default function DealsReviewReportPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [departmentIdsFilter]);
 
   return (
     <div>
       <Typography.Title level={4} style={{ marginTop: 0 }}>
         Deal Status Review & Report
       </Typography.Title>
+
+      {canFilterDepartment && (
+        <div style={{ marginBottom: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, textTransform: "uppercase", fontWeight: 700, color: token.colorTextSecondary }}>Departments</span>
+          <Select
+            mode="multiple"
+            allowClear
+            maxTagCount="responsive"
+            placeholder="All departments"
+            value={departmentIdsFilter}
+            options={departmentOptions}
+            onChange={(vals) => setDepartmentIdsFilter((vals || []).map((v) => Number(v)))}
+            style={{ minWidth: 320 }}
+          />
+        </div>
+      )}
 
       {error && <Alert type="warning" message={error} style={{ marginBottom: 12 }} />}
 

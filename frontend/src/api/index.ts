@@ -120,7 +120,7 @@ export const adminActivityApi = {
 };
 
 export const customersApi = {
-  list: (params?: { q?: string }) => api.get("/customers", { params }),
+  list: (params?: { q?: string; department_ids?: number[] }) => api.get("/customers", { params }),
   get: (id: number) => api.get(`/customers/${id}`),
   create: (data: unknown) => api.post("/customers", data),
   update: (id: number, data: unknown) => api.put(`/customers/${id}`, data),
@@ -130,7 +130,7 @@ export const customersApi = {
 };
 
 export const projectsApi = {
-  list: (params?: { customer_id?: number; status?: string }) => api.get("/projects", { params }),
+  list: (params?: { customer_id?: number; status?: string; department_ids?: number[] }) => api.get("/projects", { params }),
   get: (id: number) => api.get(`/projects/${id}`),
   create: (data: unknown) => api.post("/projects", data),
   update: (id: number, data: unknown) => api.put(`/projects/${id}`, data),
@@ -174,7 +174,7 @@ export const boqPricingV2Api = {
 };
 
 export const quotationsApi = {
-  list: (params?: { project_id?: number; status?: string }) => api.get("/quotations", { params }),
+  list: (params?: { project_id?: number; status?: string; department_ids?: number[] }) => api.get("/quotations", { params }),
   get: (id: number) => api.get(`/quotations/${id}`),
   create: (data: unknown) => api.post("/quotations", data),
   update: (id: number, data: unknown) => api.put(`/quotations/${id}`, data),
@@ -210,6 +210,22 @@ export const rolePermissionsApi = {
     api.put(`/role-permissions/${role}`, { permissions }),
 };
 
+export interface DepartmentOut {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export const departmentsApi = {
+  list: () => api.get<DepartmentOut[]>("/departments"),
+  get: (id: number) => api.get<DepartmentOut>(`/departments/${id}`),
+  create: (data: { name: string; is_active?: boolean }) => api.post<DepartmentOut>("/departments", data),
+  update: (id: number, data: { name?: string; is_active?: boolean }) =>
+    api.put<DepartmentOut>(`/departments/${id}`, data),
+  delete: (id: number) => api.delete(`/departments/${id}`),
+};
+
 export const dealsApi = {
   list: (params?: { owner_id?: number; stage?: string; status?: string }) => api.get("/deals", { params }),
   get: (id: number) => api.get(`/deals/${id}`),
@@ -225,7 +241,72 @@ export const dealsApi = {
   addActivity: (id: number, data: unknown) => api.post(`/deals/${id}/activities`, data),
   dashboardMy: () => api.get("/deals/dashboard/my"),
   dashboardManager: (params?: { owner_id?: number }) => api.get("/deals/dashboard/manager", { params }),
-  reviewReportManager: () => api.get("/deals/review-report/manager"),
+  reviewReportManager: (params?: { department_ids?: number[] }) => api.get("/deals/review-report/manager", { params }),
+};
+
+export interface DealMasterDataCustomerType {
+  id: number;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DealMasterDataCompany {
+  id: number;
+  customer_type_id: number;
+  customer_type_name?: string | null;
+  customer_id: number;
+  customer_name?: string | null;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DealMasterDataProductSystemType {
+  id: number;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DealMasterDataProjectStatus {
+  id: number;
+  key: string;
+  label: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DealMasterDataBundle {
+  customer_types: DealMasterDataCustomerType[];
+  companies: DealMasterDataCompany[];
+  product_system_types: DealMasterDataProductSystemType[];
+  project_statuses: DealMasterDataProjectStatus[];
+}
+
+export const dealMasterDataApi = {
+  options: () => api.get<DealMasterDataBundle>("/deal-master-data/options"),
+  overview: () => api.get<DealMasterDataBundle>("/deal-master-data/overview"),
+  createCustomerType: (data: { name: string; sort_order?: number; is_active?: boolean }) =>
+    api.post<DealMasterDataCustomerType>("/deal-master-data/customer-types", data),
+  updateCustomerType: (id: number, data: { name?: string; sort_order?: number; is_active?: boolean }) =>
+    api.put<DealMasterDataCustomerType>(`/deal-master-data/customer-types/${id}`, data),
+  createCompany: (data: { customer_type_id: number; name: string; sort_order?: number; is_active?: boolean; customer_id?: number }) =>
+    api.post<DealMasterDataCompany>("/deal-master-data/companies", data),
+  updateCompany: (id: number, data: { customer_type_id?: number; name?: string; sort_order?: number; is_active?: boolean; customer_id?: number }) =>
+    api.put<DealMasterDataCompany>(`/deal-master-data/companies/${id}`, data),
+  quickAddCompany: (data: { customer_type_id: number; name: string; sort_order?: number; customer_id?: number }) =>
+    api.post<DealMasterDataCompany>("/deal-master-data/quick-add/company", data),
+  createProductSystemType: (data: { name: string; sort_order?: number; is_active?: boolean }) =>
+    api.post<DealMasterDataProductSystemType>("/deal-master-data/product-system-types", data),
+  updateProductSystemType: (id: number, data: { name?: string; sort_order?: number; is_active?: boolean }) =>
+    api.put<DealMasterDataProductSystemType>(`/deal-master-data/product-system-types/${id}`, data),
+  quickAddProductSystemType: (data: { name: string; sort_order?: number }) =>
+    api.post<DealMasterDataProductSystemType>("/deal-master-data/quick-add/product-system-type", data),
+  createProjectStatus: (data: { key?: string; label: string; sort_order?: number; is_active?: boolean }) =>
+    api.post<DealMasterDataProjectStatus>("/deal-master-data/project-statuses", data),
+  updateProjectStatus: (id: number, data: { key?: string; label?: string; sort_order?: number; is_active?: boolean }) =>
+    api.put<DealMasterDataProjectStatus>(`/deal-master-data/project-statuses/${id}`, data),
 };
 
 export const sourcingApi = {

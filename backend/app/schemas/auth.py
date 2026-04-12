@@ -1,5 +1,5 @@
 from __future__ import annotations
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
@@ -14,3 +14,5 @@ class TokenResponse(BaseModel):
     username: str
     full_name: str
     role: str
+    active_department_id: int | None = None
+    department_ids: list[int] = Field(default_factory=list)

@@ -5,6 +5,8 @@ interface AuthUser {
   username: string;
   full_name: string;
   role: string;
+  active_department_id?: number | null;
+  department_ids?: number[];
 }
 
 interface AuthState {

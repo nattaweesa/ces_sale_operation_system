@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { Table, Button, Modal, Form, Input, Select, Tag, Space, Typography, Popconfirm, message } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, StopOutlined, CheckCircleOutlined } from "@ant-design/icons";
-import { usersApi } from "../api";
+import { departmentsApi, usersApi } from "../api";
 import { useAuthStore } from "../store/authStore";
 
 const ROLE_COLORS: Record<string, string> = { admin: "red", manager: "blue", sales_admin: "purple", sales: "green", sale_upload: "orange" };
 
 export default function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
+  const isAdmin = currentUser?.role === "admin";
   const [users, setUsers] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string; is_active: boolean }>>([]);
   const [loading, setLoading] = useState(false);
   const [savingActionUserId, setSavingActionUserId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
@@ -18,8 +20,9 @@ export default function UsersPage() {
   const load = async () => {
     try {
       setLoading(true);
-      const r = await usersApi.list();
-      setUsers(r.data);
+      const [u, d] = await Promise.all([usersApi.list(), departmentsApi.list()]);
+      setUsers(u.data || []);
+      setDepartments((d.data || []).filter((item: any) => !!item.is_active));
     } catch (error: any) {
       message.error(error?.response?.data?.detail || "Failed to load users");
     } finally {
@@ -29,12 +32,24 @@ export default function UsersPage() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditRecord(null); form.resetFields(); setOpen(true); };
-  const openEdit = (r: any) => { setEditRecord(r); form.setFieldsValue({ ...r, password: "" }); setOpen(true); };
+  const openEdit = (r: any) => {
+    setEditRecord(r);
+    form.setFieldsValue({
+      ...r,
+      password: "",
+      department_ids: (r.departments || []).map((dep: any) => Number(dep.id)).filter((id: number) => Number.isFinite(id)),
+      active_department_id: r.active_department_id ?? undefined,
+    });
+    setOpen(true);
+  };
 
   const handleSave = async () => {
     try {
       const v = await form.validateFields();
       delete v.confirm_password;
+      if (!Array.isArray(v.department_ids)) {
+        v.department_ids = [];
+      }
       if (!v.password) delete v.password;
       if (editRecord) {
         await usersApi.update(editRecord.id, v);
@@ -80,7 +95,7 @@ export default function UsersPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
         <Typography.Title level={4} style={{ margin: 0 }}>Users</Typography.Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>New User</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate} disabled={!isAdmin}>New User</Button>
       </div>
       <Table
         dataSource={users} rowKey="id" loading={loading} size="small"
@@ -89,6 +104,23 @@ export default function UsersPage() {
           { title: "Full Name", dataIndex: "full_name" },
           { title: "Email", dataIndex: "email" },
           { title: "Role", dataIndex: "role", render: (v: string) => <Tag color={ROLE_COLORS[v]}>{v.toUpperCase()}</Tag> },
+          {
+            title: "Departments",
+            dataIndex: "departments",
+            render: (rows: Array<{ id: number; name: string }>) => (
+              <Space wrap>
+                {(rows || []).map((dep) => <Tag key={dep.id}>{dep.name}</Tag>)}
+              </Space>
+            ),
+          },
+          {
+            title: "Active Dept",
+            dataIndex: "active_department_id",
+            render: (v: number | null, row: any) => {
+              const dep = (row.departments || []).find((d: any) => Number(d.id) === Number(v));
+              return dep?.name || "-";
+            },
+          },
           { title: "Active", dataIndex: "is_active", render: (v: boolean) => v ? <Tag color="green">Active</Tag> : <Tag>Inactive</Tag> },
           {
             title: "Actions",
@@ -98,7 +130,7 @@ export default function UsersPage() {
               const busy = savingActionUserId === r.id;
               return (
                 <Space>
-                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} disabled={!isAdmin} />
                   <Popconfirm
                     title={r.is_active ? "Deactivate this user?" : "Activate this user?"}
                     okText="Yes"
@@ -109,7 +141,7 @@ export default function UsersPage() {
                     <Button
                       size="small"
                       icon={r.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
-                      disabled={isSelf || busy}
+                      disabled={isSelf || busy || !isAdmin}
                     />
                   </Popconfirm>
                   <Popconfirm
@@ -121,7 +153,7 @@ export default function UsersPage() {
                     onConfirm={() => deleteUser(r)}
                     disabled={isSelf}
                   >
-                    <Button danger size="small" icon={<DeleteOutlined />} disabled={isSelf || busy} />
+                    <Button danger size="small" icon={<DeleteOutlined />} disabled={isSelf || busy || !isAdmin} />
                   </Popconfirm>
                 </Space>
               );
@@ -143,6 +175,34 @@ export default function UsersPage() {
               ]} />
             </Form.Item>
           </div>
+          <Form.Item name="department_ids" label="Allowed Departments">
+            <Select
+              mode="multiple"
+              placeholder="Select allowed departments"
+              options={departments.map((dep) => ({ value: dep.id, label: dep.name }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="active_department_id"
+            label="Active Department"
+            dependencies={["department_ids"]}
+            rules={[
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  const ids = (getFieldValue("department_ids") || []) as number[];
+                  if (value == null || value === undefined) return Promise.resolve();
+                  if (ids.includes(value)) return Promise.resolve();
+                  return Promise.reject(new Error("Active department must be in allowed departments"));
+                },
+              }),
+            ]}
+          >
+            <Select
+              allowClear
+              placeholder="Select active department"
+              options={departments.map((dep) => ({ value: dep.id, label: dep.name }))}
+            />
+          </Form.Item>
           <Form.Item name="full_name" label="Full Name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="email" label="Email"><Input /></Form.Item>
           <Form.Item name="password" label={editRecord ? "New Password (leave blank to keep)" : "Password"} rules={editRecord ? [] : [{ required: true }]}>

@@ -46,6 +46,7 @@ const allNavItems: NavItem[] = [
       { key: "admin-user-sessions", label: "User Sessions", icon: "history", path: "/admin/user-sessions" },
       { key: "admin-role-permissions", label: "Role Permissions", icon: "admin_panel_settings", path: "/admin/role-permissions" },
       { key: "admin-quotation-master-data", label: "Quotation Master Data", icon: "dataset_linked", path: "/admin/quotation-master-data" },
+      { key: "admin-deal-master-data", label: "Deal Master Data", icon: "list_alt", path: "/admin/deal-master-data" },
       { key: "admin-ai-settings", label: "AI Settings", icon: "settings_suggest", path: "/admin/ai-settings" },
       { key: "admin-monitor-grafana", label: "Grafana", icon: "monitoring", path: "http://187.77.156.215:3000" },
       { key: "admin-monitor-prometheus", label: "Prometheus", icon: "query_stats", path: "http://187.77.156.215:9090" },

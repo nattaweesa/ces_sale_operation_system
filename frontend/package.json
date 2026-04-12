@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:analyze": "tsc && ANALYZE=true vite build",
+    "check:bundle": "node ./scripts/check-bundle-size.mjs",
+    "build:ci": "npm run build && npm run check:bundle",
     "preview": "vite preview"
   },
   "dependencies": {
     "@ant-design/icons": "^5.3.7",
     "antd": "^5.17.4",
-    "axios": "^1.7.2",
+    "axios": "^1.15.0",
     "dayjs": "^1.11.11",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -23,11 +26,12 @@
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.0",
+    "@vitejs/plugin-react": "^5.1.0",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
+    "rollup-plugin-visualizer": "^6.0.11",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.4.5",
-    "vite": "^5.2.12"
+    "vite": "^7.3.2"
   }
 }
