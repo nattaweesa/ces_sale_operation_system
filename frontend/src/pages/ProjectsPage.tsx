@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Table, Button, Modal, Form, Input, Select, Tag, Space, Typography, message,
+  Table, Button, Modal, Form, Input, Select, Tag, Space, Typography, message, theme,
 } from "antd";
 import { PlusOutlined, EditOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +11,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function ProjectsPage() {
+  const { token } = theme.useToken();
   const [projects, setProjects] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([]);
@@ -55,7 +56,7 @@ export default function ProjectsPage() {
       </div>
 
       <div style={{ marginBottom: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "#64748b" }}>Departments</span>
+        <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: token.colorTextSecondary }}>Departments</span>
         <Select
           mode="multiple"
           allowClear

@@ -9,7 +9,7 @@ type AppThemeDefinition = {
   antTheme: ThemeConfig;
 };
 
-export const defaultThemeName: AppThemeName = "atrium-dark";
+export const defaultThemeName: AppThemeName = "classic";
 
 export const appThemeOptions: Array<{ value: AppThemeName; label: string }> = [
   { value: "classic", label: "Classic" },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Card, Col, Row, Select, Statistic, Table, Tag, Typography } from "antd";
+import { Alert, Card, Col, Row, Select, Statistic, Table, Tag, Typography, theme } from "antd";
 import { dealsApi, departmentsApi } from "../api";
 import { useAuthStore } from "../store/authStore";
 import { formatTHB } from "../utils/currency";
@@ -11,6 +11,7 @@ const RISK_COLORS: Record<string, string> = {
 };
 
 export default function DealsReviewReportPage() {
+  const { token } = theme.useToken();
   const user = useAuthStore((s) => s.user);
   const canFilterDepartment = ["admin", "manager", "sales_admin"].includes(user?.role || "");
   const [loading, setLoading] = useState(false);
@@ -54,7 +55,7 @@ export default function DealsReviewReportPage() {
 
       {canFilterDepartment && (
         <div style={{ marginBottom: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, textTransform: "uppercase", fontWeight: 700, color: "#64748b" }}>Departments</span>
+          <span style={{ fontSize: 12, textTransform: "uppercase", fontWeight: 700, color: token.colorTextSecondary }}>Departments</span>
           <Select
             mode="multiple"
             allowClear
