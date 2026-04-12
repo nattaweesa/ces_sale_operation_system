@@ -242,8 +242,7 @@ export default function AppLayout() {
             <span className="text-[#111a55] text-[11px] font-extrabold tracking-wide leading-none">CES</span>
           </div>
           <div>
-            <h1 className={`text-sm font-bold font-headline leading-tight ${shellTextClass}`}>CES</h1>
-            <p className={`text-[10px] uppercase tracking-[0.18em] ${isAtrium ? "text-[#92a0c2]" : mutedTextClass}`}>Sale Operation System</p>
+            <h1 className={`text-[11px] font-bold font-headline uppercase tracking-[0.16em] leading-tight ${shellTextClass}`}>COMPLETE ELECTRICAL SOLUTIONS</h1>
           </div>
         </div>
 
@@ -358,8 +357,7 @@ export default function AppLayout() {
             <span className="material-symbols-outlined text-2xl">{sidebarOpen ? "close" : "menu"}</span>
           </button>
           <div>
-            <p className={`font-semibold font-headline text-lg leading-none ${shellTextClass}`}>CES Sale Operation</p>
-            <p className={`text-xs mt-0.5 ${mutedTextClass}`}>Workspace</p>
+            <p className={`font-semibold font-headline text-sm uppercase tracking-[0.16em] leading-none ${shellTextClass}`}>COMPLETE ELECTRICAL SOLUTIONS</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
