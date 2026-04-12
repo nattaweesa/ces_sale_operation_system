@@ -102,9 +102,8 @@ export default function DealsDashboardPage() {
       iconBg: "bg-[#1f3159]",
     },
     {
-      label: "Won Deals",
-      value: wonDeals.toString(),
-      subValue: fmt(wonAmount),
+      label: `${wonDeals} Won Deals`,
+      value: fmt(wonAmount),
       icon: "emoji_events",
       badge: { text: "Closed Won", color: "emerald" },
       barColor: "bg-[#6bffc1]",
@@ -211,9 +210,6 @@ export default function DealsDashboardPage() {
             </div>
             <p className="text-sm text-[#97a6c9] font-medium">{card.label}</p>
             <h3 className="text-2xl font-extrabold text-[#e5ebff] mt-1 font-headline">{loading ? "-" : card.value}</h3>
-            {card.subValue && (
-              <p className="text-xs font-semibold text-[#9fb0d2] mt-1">{loading ? "-" : card.subValue}</p>
-            )}
             <div className="mt-4 h-1 w-full bg-[#233861] rounded-full overflow-hidden">
               <div className={`h-full ${card.barColor} transition-all duration-500`} style={{ width: loading ? "0%" : card.barWidth }} />
             </div>
