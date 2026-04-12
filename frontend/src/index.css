@@ -320,3 +320,28 @@ h1, h2, h3, h4, .font-headline {
   background-color: rgb(var(--primary-fixed)) !important;
   color: rgb(var(--on-primary-fixed)) !important;
 }
+
+/* --- Dashboard bars in classic: restore contrast for tracks and fills --- */
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#233861\],
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#223861\],
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#09142b\] {
+  background-color: rgb(var(--surface-container-high)) !important;
+}
+
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#8e95ff\],
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#8d95ff\],
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#7f91b9\] {
+  background-color: rgb(var(--primary)) !important;
+}
+
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#8d95ff\/35\] {
+  background-color: rgb(var(--primary) / 0.45) !important;
+}
+
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#76c4ff\] {
+  background-color: rgb(var(--tertiary)) !important;
+}
+
+[data-theme="classic"] .deals-dashboard-page .bg-\[\#6bffc1\] {
+  background-color: rgb(35 146 98) !important;
+}
