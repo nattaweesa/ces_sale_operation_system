@@ -23,6 +23,7 @@ const allNavItems: NavItem[] = [
       { key: "deals-review-report", label: "Review Report", icon: "fact_check", path: "/deals-review-report" },
     ],
   },
+  { key: "ai-chat", label: "AI Assistant", icon: "smart_toy", path: "/ai-chat" },
   {
     key: "products", label: "Products", icon: "inventory_2",
     children: [
@@ -41,7 +42,6 @@ const allNavItems: NavItem[] = [
   {
     key: "admin", label: "Admin", icon: "admin_panel_settings",
     children: [
-      { key: "admin-ai-chat", label: "AI Assistant", icon: "smart_toy", path: "/ai-chat" },
       { key: "users", label: "Users", icon: "manage_accounts", path: "/users" },
       { key: "departments", label: "Departments", icon: "domain", path: "/departments" },
       { key: "admin-user-sessions", label: "User Sessions", icon: "history", path: "/admin/user-sessions" },
@@ -74,11 +74,15 @@ function getNavItems(role?: string, perms?: Record<string, boolean>): NavItem[] 
     if ("children" in item && item.key === "admin" && !canAccessAdminMenu) {
       return null;
     }
-    if (!("children" in item)) return item;
+    if (!("children" in item)) {
+      if (item.key === "ai-chat" && !canUseAiChat) {
+        return null;
+      }
+      return item;
+    }
     const children = item.children.filter(
       (c) =>
         (!isSales || !["boqs", "v2-pricing", "quotations"].includes(c.key)) &&
-        (c.key !== "admin-ai-chat" || canUseAiChat) &&
         (c.key !== "departments" || canConfigureRoles) &&
         (c.key !== "deals-review-report" || canViewDealReview) &&
         (c.key !== "admin-role-permissions" || canConfigureRoles) &&
