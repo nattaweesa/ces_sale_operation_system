@@ -119,6 +119,12 @@ export default function AIKnowledgePage() {
               render: (v: number) => v.toLocaleString("en-US"),
             },
             {
+              title: "Chunks",
+              dataIndex: "chunk_count",
+              width: 90,
+              render: (v: number) => v.toLocaleString("en-US"),
+            },
+            {
               title: "Uploaded By",
               dataIndex: "uploaded_by_name",
               width: 180,

@@ -39,7 +39,7 @@ from app.models.quotation_intake import (
 from app.models.role_permission import RolePermission
 from app.models.user_activity import UserActivityLog
 from app.models.ai_setting import AISetting
-from app.models.ai_knowledge import AIKnowledgeDocument
+from app.models.ai_knowledge import AIKnowledgeDocument, AIKnowledgeChunk
 from app.models.boq_pricing_v2 import (
     BOQRevisionV2,
     BOQRevisionItemV2,
@@ -84,4 +84,5 @@ __all__ = [
     "AuditLog",
     "AISetting",
     "AIKnowledgeDocument",
+    "AIKnowledgeChunk",
 ]

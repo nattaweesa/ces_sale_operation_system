@@ -28,3 +28,22 @@ class AIKnowledgeDocument(Base):
     )
 
     uploader = relationship("User", lazy="select")
+    chunks = relationship(
+        "AIKnowledgeChunk",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="AIKnowledgeChunk.chunk_index",
+    )
+
+
+class AIKnowledgeChunk(Base):
+    __tablename__ = "ai_knowledge_chunks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    document_id: Mapped[int] = mapped_column(Integer, ForeignKey("ai_knowledge_documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_text: Mapped[str] = mapped_column(Text, nullable=False)
+    content_chars: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    document = relationship("AIKnowledgeDocument", back_populates="chunks")

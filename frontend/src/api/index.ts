@@ -41,6 +41,7 @@ export interface AIKnowledgeDocumentOut {
   source_filename: string;
   mime_type?: string | null;
   content_chars: number;
+  chunk_count: number;
   is_active: boolean;
   uploaded_by: number;
   uploaded_by_name?: string | null;
@@ -51,6 +52,7 @@ export interface AIKnowledgeUploadOut {
   id: number;
   title: string;
   content_chars: number;
+  chunk_count: number;
 }
 
 export const aiChatApi = {

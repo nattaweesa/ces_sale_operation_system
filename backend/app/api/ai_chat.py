@@ -10,7 +10,7 @@ from sqlalchemy import select, func
 
 from app.database import get_db
 from app.models.deal import Deal
-from app.models.ai_knowledge import AIKnowledgeDocument
+from app.models.ai_knowledge import AIKnowledgeChunk, AIKnowledgeDocument
 from app.models.user import User
 from app.services.ai_settings import resolve_minimax_runtime_config
 from app.services.auth import require_roles
@@ -197,19 +197,20 @@ async def _fetch_knowledge_context(db: AsyncSession, user_query: str) -> str:
     terms = _tokenize_query(user_query)
     rows = (
         await db.execute(
-            select(AIKnowledgeDocument)
+            select(AIKnowledgeChunk, AIKnowledgeDocument)
+            .join(AIKnowledgeDocument, AIKnowledgeDocument.id == AIKnowledgeChunk.document_id)
             .where(AIKnowledgeDocument.is_active == True)
             .order_by(AIKnowledgeDocument.updated_at.desc())
-            .limit(120)
+            .limit(1500)
         )
-    ).scalars().all()
+    ).all()
 
     if not rows:
         return ""
 
-    ranked: list[tuple[int, AIKnowledgeDocument]] = []
-    for doc in rows:
-        content_lower = (doc.content_text or "").lower()
+    ranked: list[tuple[int, AIKnowledgeChunk, AIKnowledgeDocument]] = []
+    for chunk, doc in rows:
+        content_lower = (chunk.content_text or "").lower()
         title_lower = (doc.title or "").lower()
         if terms:
             score = sum(content_lower.count(t) for t in terms) + 3 * sum(title_lower.count(t) for t in terms)
@@ -217,19 +218,20 @@ async def _fetch_knowledge_context(db: AsyncSession, user_query: str) -> str:
                 continue
         else:
             score = 1
-        ranked.append((score, doc))
+        ranked.append((score, chunk, doc))
 
     if not ranked:
         return ""
 
     ranked.sort(key=lambda x: x[0], reverse=True)
-    top_docs = ranked[:3]
+    top_chunks = ranked[:6]
 
-    lines: list[str] = ["=== คู่มือ/เอกสารอ้างอิงเพิ่มเติม (AI Knowledge) ==="]
-    for score, doc in top_docs:
-        snippet = _build_snippet(doc.content_text or "", terms)
-        lines.append(f"- เอกสาร: {doc.title} | source: {doc.source_filename} | score: {score}")
-        lines.append(f"  เนื้อหาบางส่วน: {snippet}")
+    lines: list[str] = ["=== คู่มือ/เอกสารอ้างอิงเพิ่มเติม (AI Knowledge Chunks) ==="]
+    for i, (score, chunk, doc) in enumerate(top_chunks, start=1):
+        cite = f"K{i}"
+        snippet = _build_snippet(chunk.content_text or "", terms)
+        lines.append(f"- [{cite}] เอกสาร: {doc.title} | source: {doc.source_filename} | chunk: {chunk.chunk_index} | score: {score}")
+        lines.append(f"  เนื้อหา: {snippet}")
 
     return "\n".join(lines)
 
@@ -265,7 +267,7 @@ async def ai_chat_query(
         "ตอบเป็นภาษาไทยเสมอ ยกเว้นคำศัพท์เฉพาะอาจใช้ภาษาอังกฤษได้\n"
         "ให้คำตอบที่ชัดเจน กระชับ และเป็นประโยชน์\n"
         "ถ้าเป็นข้อมูลเปรียบเทียบ/หลายรายการ ให้ตอบเป็นตาราง Markdown (GFM)\n"
-        "หากอ้างอิงจากเอกสารคู่มือ ให้ระบุชื่อเอกสารที่ใช้อ้างอิงในคำตอบสั้นๆ\n"
+        "หากอ้างอิงจากเอกสารคู่มือ ให้ใส่ citation ที่ท้ายประโยคในรูปแบบ [K1], [K2] ตามที่ให้ไว้ใน context\n"
         "นิยามข้อมูลสำคัญ: deal_cycle_stage คือ CES Stage ภายในบริษัท CES เช่น lead, qualified, proposal, negotiation, won, lost\n"
         "นิยามข้อมูลสำคัญ: status คือ Project Status ของหน้างานฝั่งลูกค้า/ผู้รับเหมา เช่น design, bidding, award, on_hold\n"
         "นิยามข้อมูลสำคัญ: expected_value คือมูลค่าคาดการณ์ที่ใช้ในระบบอยู่แล้ว ห้ามนำ expected_value ไปคูณ probability_pct ซ้ำ เว้นแต่ผู้ใช้สั่งให้คำนวณสมมติฐานใหม่อย่างชัดเจน\n"
