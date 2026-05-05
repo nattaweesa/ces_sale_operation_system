@@ -71,9 +71,9 @@ def upgrade() -> None:
         sa.text(
             """
             INSERT INTO deal_customer_types (name, sort_order, is_active, created_at, updated_at)
-            SELECT :name, :sort_order, TRUE, NOW(), NOW()
+            SELECT CAST(:name AS VARCHAR), :sort_order, TRUE, NOW(), NOW()
             WHERE NOT EXISTS (
-                SELECT 1 FROM deal_customer_types WHERE LOWER(name) = LOWER(:name)
+                SELECT 1 FROM deal_customer_types WHERE LOWER(name) = LOWER(CAST(:name AS VARCHAR))
             )
             """
         ),
@@ -98,7 +98,7 @@ def upgrade() -> None:
         parent_id = name_to_id.get(parent_name) if parent_name else None
         existing = bind.execute(
             sa.text(
-                "SELECT id FROM deal_product_system_types WHERE LOWER(name) = LOWER(:name)"
+                "SELECT id FROM deal_product_system_types WHERE LOWER(name) = LOWER(CAST(:name AS VARCHAR))"
             ),
             {"name": name},
         ).first()
