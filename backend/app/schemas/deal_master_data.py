@@ -62,6 +62,7 @@ class DealCompanyOut(DealCompanyBase):
 
 class DealProductSystemTypeBase(BaseModel):
     name: str
+    parent_id: Optional[int] = None
     sort_order: int = 0
     is_active: bool = True
 
@@ -72,12 +73,14 @@ class DealProductSystemTypeCreate(DealProductSystemTypeBase):
 
 class DealProductSystemTypeUpdate(BaseModel):
     name: Optional[str] = None
+    parent_id: Optional[int] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
 
 
 class DealProductSystemTypeOut(DealProductSystemTypeBase):
     id: int
+    parent_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

@@ -310,6 +310,8 @@ export interface DealMasterDataCompany {
 export interface DealMasterDataProductSystemType {
   id: number;
   name: string;
+  parent_id: number | null;
+  parent_name?: string | null;
   sort_order: number;
   is_active: boolean;
 }
@@ -351,11 +353,11 @@ export const dealMasterDataApi = {
     api.put<DealMasterDataCompany>(`/deal-master-data/companies/${id}`, data),
   quickAddCompany: (data: { customer_type_id: number; name: string; sort_order?: number; customer_id?: number }) =>
     api.post<DealMasterDataCompany>("/deal-master-data/quick-add/company", data),
-  createProductSystemType: (data: { name: string; sort_order?: number; is_active?: boolean }) =>
+  createProductSystemType: (data: { name: string; parent_id?: number | null; sort_order?: number; is_active?: boolean }) =>
     api.post<DealMasterDataProductSystemType>("/deal-master-data/product-system-types", data),
-  updateProductSystemType: (id: number, data: { name?: string; sort_order?: number; is_active?: boolean }) =>
+  updateProductSystemType: (id: number, data: { name?: string; parent_id?: number | null; sort_order?: number; is_active?: boolean }) =>
     api.put<DealMasterDataProductSystemType>(`/deal-master-data/product-system-types/${id}`, data),
-  quickAddProductSystemType: (data: { name: string; sort_order?: number }) =>
+  quickAddProductSystemType: (data: { name: string; parent_id?: number | null; sort_order?: number }) =>
     api.post<DealMasterDataProductSystemType>("/deal-master-data/quick-add/product-system-type", data),
   createProjectStatus: (data: { key?: string; label: string; sort_order?: number; is_active?: boolean }) =>
     api.post<DealMasterDataProjectStatus>("/deal-master-data/project-statuses", data),

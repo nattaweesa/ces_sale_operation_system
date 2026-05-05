@@ -83,7 +83,7 @@ MONTH_LABELS = {
 STATUS_MAP: list[tuple[re.Pattern[str], tuple[str, str]]] = [
     (re.compile(r"award|won|ชนะ", re.IGNORECASE), ("won", "won")),
     (re.compile(r"lost|แพ้|cancel", re.IGNORECASE), ("lost", "lost")),
-    (re.compile(r"hold|พัก", re.IGNORECASE), ("qualified", "on_hold")),
+    (re.compile(r"hold|พัก", re.IGNORECASE), ("proposal", "on_hold")),
     (re.compile(r"negotia", re.IGNORECASE), ("negotiation", "open")),
     (re.compile(r"bidding|proposal|เสนอราคา|quote", re.IGNORECASE), ("proposal", "open")),
 ]
@@ -151,7 +151,6 @@ def parse_probability(win_pct_raw: Decimal | None, stage: str) -> int:
         return int(max(0, min(100, round(pct))))
     defaults = {
         "lead": 10,
-        "qualified": 30,
         "proposal": 50,
         "negotiation": 70,
         "won": 100,

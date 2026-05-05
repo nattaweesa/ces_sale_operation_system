@@ -71,6 +71,31 @@ def _to_company_out(row: DealCompany) -> DealCompanyOut:
     return out
 
 
+def _to_product_system_out(row: DealProductSystemType) -> DealProductSystemTypeOut:
+    out = DealProductSystemTypeOut.model_validate(row)
+    out.parent_name = row.parent.name if getattr(row, "parent", None) else None
+    return out
+
+
+async def _validate_product_system_parent(
+    db: AsyncSession,
+    parent_id: Optional[int],
+    self_id: Optional[int] = None,
+) -> None:
+    if parent_id is None:
+        return
+    if self_id is not None and parent_id == self_id:
+        raise HTTPException(status_code=400, detail="Parent cannot reference itself")
+    parent = await db.execute(
+        select(DealProductSystemType).where(DealProductSystemType.id == parent_id)
+    )
+    parent_row = parent.scalar_one_or_none()
+    if not parent_row:
+        raise HTTPException(status_code=404, detail="Parent product/system type not found")
+    if parent_row.parent_id is not None:
+        raise HTTPException(status_code=400, detail="Parent must be a top-level type")
+
+
 async def _list_customer_types(db: AsyncSession, active_only: bool) -> list[DealCustomerType]:
     stmt = select(DealCustomerType).order_by(DealCustomerType.sort_order.asc(), DealCustomerType.name.asc())
     if active_only:
@@ -92,7 +117,11 @@ async def _list_companies(db: AsyncSession, active_only: bool) -> list[DealCompa
 
 
 async def _list_product_system_types(db: AsyncSession, active_only: bool) -> list[DealProductSystemType]:
-    stmt = select(DealProductSystemType).order_by(DealProductSystemType.sort_order.asc(), DealProductSystemType.name.asc())
+    stmt = (
+        select(DealProductSystemType)
+        .options(selectinload(DealProductSystemType.parent))
+        .order_by(DealProductSystemType.sort_order.asc(), DealProductSystemType.name.asc())
+    )
     if active_only:
         stmt = stmt.where(DealProductSystemType.is_active == True)
     result = await db.execute(stmt)
@@ -136,7 +165,11 @@ async def _get_company_or_404(company_id: int, db: AsyncSession) -> DealCompany:
 
 
 async def _get_product_system_type_or_404(product_system_type_id: int, db: AsyncSession) -> DealProductSystemType:
-    result = await db.execute(select(DealProductSystemType).where(DealProductSystemType.id == product_system_type_id))
+    result = await db.execute(
+        select(DealProductSystemType)
+        .options(selectinload(DealProductSystemType.parent))
+        .where(DealProductSystemType.id == product_system_type_id)
+    )
     row = result.scalar_one_or_none()
     if not row:
         raise HTTPException(status_code=404, detail="Product/System Type not found")
@@ -193,7 +226,7 @@ async def _get_bundle(db: AsyncSession, active_only: bool) -> DealMasterDataBund
     return DealMasterDataBundleOut(
         customer_types=[DealCustomerTypeOut.model_validate(row) for row in customer_types],
         companies=[_to_company_out(row) for row in companies],
-        product_system_types=[DealProductSystemTypeOut.model_validate(row) for row in product_system_types],
+        product_system_types=[_to_product_system_out(row) for row in product_system_types],
         project_statuses=[DealProjectStatusOptionOut.model_validate(row) for row in project_statuses],
         ces_stages=[DealCESStageOptionOut.model_validate(row) for row in ces_stages],
     )
@@ -323,15 +356,16 @@ async def create_product_system_type(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles("admin", "manager")),
 ):
+    await _validate_product_system_parent(db, payload.parent_id)
     row = DealProductSystemType(
         name=_normalize_name(payload.name),
+        parent_id=payload.parent_id,
         sort_order=payload.sort_order,
         is_active=payload.is_active,
     )
     db.add(row)
     await db.commit()
-    await db.refresh(row)
-    return DealProductSystemTypeOut.model_validate(row)
+    return _to_product_system_out(await _get_product_system_type_or_404(row.id, db))
 
 
 @router.put("/product-system-types/{product_system_type_id}", response_model=DealProductSystemTypeOut)
@@ -342,14 +376,15 @@ async def update_product_system_type(
     _: User = Depends(require_roles("admin", "manager")),
 ):
     row = await _get_product_system_type_or_404(product_system_type_id, db)
-    updates = payload.model_dump(exclude_none=True)
-    if "name" in updates:
+    updates = payload.model_dump(exclude_unset=True)
+    if "name" in updates and updates["name"] is not None:
         updates["name"] = _normalize_name(updates["name"])
+    if "parent_id" in updates:
+        await _validate_product_system_parent(db, updates["parent_id"], self_id=row.id)
     for field, value in updates.items():
         setattr(row, field, value)
     await db.commit()
-    await db.refresh(row)
-    return DealProductSystemTypeOut.model_validate(row)
+    return _to_product_system_out(await _get_product_system_type_or_404(row.id, db))
 
 
 @router.post("/quick-add/product-system-type", response_model=DealProductSystemTypeOut, status_code=201)
@@ -359,15 +394,16 @@ async def quick_add_product_system_type(
     current_user: User = Depends(get_current_user),
 ):
     _ensure_deal_editor(current_user)
+    await _validate_product_system_parent(db, payload.parent_id)
     row = DealProductSystemType(
         name=_normalize_name(payload.name),
+        parent_id=payload.parent_id,
         sort_order=payload.sort_order,
         is_active=True,
     )
     db.add(row)
     await db.commit()
-    await db.refresh(row)
-    return DealProductSystemTypeOut.model_validate(row)
+    return _to_product_system_out(await _get_product_system_type_or_404(row.id, db))
 
 
 @router.post("/project-statuses", response_model=DealProjectStatusOptionOut, status_code=201)

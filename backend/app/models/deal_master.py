@@ -64,6 +64,11 @@ class DealProductSystemType(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False, unique=True)
+    parent_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("deal_product_system_types.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -71,6 +76,12 @@ class DealProductSystemType(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    parent: Mapped[Optional["DealProductSystemType"]] = relationship(
+        "DealProductSystemType",
+        remote_side="DealProductSystemType.id",
+        lazy="select",
     )
 
     deals: Mapped[list["Deal"]] = relationship(

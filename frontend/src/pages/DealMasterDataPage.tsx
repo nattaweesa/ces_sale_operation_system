@@ -205,6 +205,7 @@ export default function DealMasterDataPage() {
           dataSource={data.product_system_types}
           columns={[
             { title: "Name", dataIndex: "name" },
+            { title: "Parent", dataIndex: "parent_name", width: 200, render: (v: string | null) => v || <span style={{ color: "#999" }}>—</span> },
             { title: "Sort", dataIndex: "sort_order", width: 90 },
             { title: "Status", dataIndex: "is_active", width: 110, render: renderState },
             {
@@ -331,6 +332,17 @@ export default function DealMasterDataPage() {
             <>
               <Form.Item name="name" label="Product/System Type" rules={[{ required: true }]}>
                 <Input />
+              </Form.Item>
+              <Form.Item name="parent_id" label="Parent (optional)" tooltip="Leave blank for top-level. Only top-level types can be parents.">
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="None (top-level)"
+                  options={data.product_system_types
+                    .filter((row) => row.parent_id === null && row.id !== editingRecord?.id)
+                    .map((row) => ({ value: row.id, label: row.name }))}
+                />
               </Form.Item>
               <Form.Item name="sort_order" label="Sort Order">
                 <InputNumber style={{ width: "100%" }} />

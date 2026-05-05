@@ -23,7 +23,6 @@ import { formatTHBCompact, numberInputFormatter, numberInputParser } from "../ut
 
 const KANBAN_COLUMNS = [
   { key: "lead", label: "Discovery", color: "bg-[#7f91b9]" },
-  { key: "qualified", label: "Qualified", color: "bg-[#76c4ff]" },
   { key: "proposal", label: "Proposal Sent", color: "bg-[#c8a6ff]" },
   { key: "negotiation", label: "Negotiation", color: "bg-[#ffc074]" },
   { key: "won", label: "Won", color: "bg-[#6bffc1]" },
@@ -32,7 +31,6 @@ const KANBAN_COLUMNS = [
 
 const DEFAULT_CES_STAGE_OPTIONS = [
   { value: "lead", label: "Lead / Discovery" },
-  { value: "qualified", label: "Qualified" },
   { value: "proposal", label: "Proposal" },
   { value: "negotiation", label: "Negotiation" },
   { value: "won", label: "Won" },
@@ -512,10 +510,35 @@ export default function DealsPage() {
     [companies, selectedCustomerTypeId]
   );
 
-  const productSystemTypeOptions = useMemo(
-    () => productSystemTypes.map((row) => ({ value: row.id, label: row.name })),
-    [productSystemTypes]
-  );
+  const productSystemTypeOptions = useMemo(() => {
+    const childrenByParent = new Map<number, any[]>();
+    productSystemTypes.forEach((row: any) => {
+      if (row.parent_id != null) {
+        const arr = childrenByParent.get(row.parent_id) || [];
+        arr.push(row);
+        childrenByParent.set(row.parent_id, arr);
+      }
+    });
+    const result: any[] = [];
+    productSystemTypes
+      .filter((row: any) => row.parent_id == null)
+      .forEach((parent: any) => {
+        const children = childrenByParent.get(parent.id);
+        if (children && children.length > 0) {
+          result.push({
+            label: parent.name,
+            options: children.map((c: any) => {
+              const prefix = `${parent.name} - `;
+              const display = c.name.startsWith(prefix) ? c.name.slice(prefix.length) : c.name;
+              return { value: c.id, label: display };
+            }),
+          });
+        } else {
+          result.push({ value: parent.id, label: parent.name });
+        }
+      });
+    return result;
+  }, [productSystemTypes]);
 
   const statusOptions = useMemo(() => {
     if (projectStatusOptions.length > 0) return projectStatusOptions;
@@ -875,7 +898,7 @@ export default function DealsPage() {
             </Form.Item>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Form.Item name="expected_close_date" label="Expected Close Date">
+            <Form.Item name="expected_close_date" label="Expected PO Date">
               <DatePicker style={{ width: "100%" }} />
             </Form.Item>
           </div>
