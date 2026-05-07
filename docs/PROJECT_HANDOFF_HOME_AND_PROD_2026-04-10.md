@@ -24,9 +24,14 @@
   - Frontend: 5173
 
 หมายเหตุ:
-- ช่วงท้ายมีปัญหาเชื่อม SSH ไป VPS ไม่เสถียร (หลายคำสั่ง exit 255)
-- แต่ก่อนหน้านี้ deploy งานสำคัญสำเร็จแล้ว
+- ช่วง 2026-05-07 มีปัญหาเชื่อม SSH จาก Codex ไป VPS ไม่เสถียร (หลายคำสั่ง exit 255/timeout)
+- ใช้ `ssh -4` และ retry ทีละคำสั่งช่วยให้ deploy สำเร็จ
+- อย่ายิง SSH ไป VPS แบบ parallel หลายเส้นถ้าไม่จำเป็น
 - เวลาเช็ก production ให้ดู path `/srv/ces_sale_operation_system` ก่อนเสมอ
+- commit production ล่าสุดหลัง deploy: `9cde255 fix(deals): prevent duplicate product rows`
+- Alembic current production ล่าสุด:
+  - `20260507_02 (head)`
+  - `20260409_01 (head)`
 
 ### B) Home instance ใหม่ (แยกจาก prod)
 - โฮสต์: 192.168.3.185 (modlab04)
@@ -47,6 +52,36 @@
 - หน้า frontend ตอบ HTTP 200
 
 ## 3) ฟีเจอร์ที่เพิ่งทำเสร็จ (สำคัญ)
+
+### Deals Multi-Product Per Deal (2026-05-07)
+- เพิ่ม repeatable product rows ใน Deal modal:
+  - Product / System Type
+  - Probability %
+  - Expected Value (THB)
+  - Expected PO Date
+- ย้าย `CES Stage` และ `Project Status` ขึ้นมาอยู่ช่วงบนของ modal ใกล้ Project/Owner
+- ใช้ตาราง normalized ใหม่ `deal_product_entries` ไม่ใช้ JSON column บน `deals`
+- migration: `backend/alembic/versions/20260507_02_deal_product_entries.py`
+- backend relationship/model/schema/API:
+  - `backend/app/models/deal.py`
+  - `backend/app/schemas/deal.py`
+  - `backend/app/api/deals.py`
+- backend aggregate ค่า summary กลับเข้า deal:
+  - `expected_value` = sum ของ product rows
+  - `probability_pct` = weighted average ตาม value หรือ average ถ้า value รวมเป็น 0
+  - `expected_close_date` = earliest `expected_po_date`
+- duplicate rule:
+  - ห้ามเลือก product/system type ซ้ำใน deal เดียวกัน เช่น `C-bus` เลือกไปแล้ว row อื่นต้องเลือกไม่ได้
+  - frontend disable option ที่เลือกไปแล้วใน row อื่น
+  - frontend validation ขึ้น `This product/system is already selected.`
+  - backend `_apply_product_entries` ยัง reject duplicate อีกชั้น
+- Backward compatibility:
+  - ถ้า deal เก่ายังไม่มี `product_entries` frontend จะ synthesize rows จาก `product_system_type_ids`
+  - row แรกจะรับ expected value เดิม, row อื่น value เป็น 0 เพื่อไม่ double count
+- Production deploy:
+  - `0f69d6b feat(deals): add product entry rows`
+  - `9cde255 fix(deals): prevent duplicate product rows`
+  - backend/frontend healthy หลัง deploy
 
 ### Deals / Sales Funnel
 - เพิ่ม owner filter ในหน้า Sales Funnel
@@ -89,6 +124,8 @@ Incident ล่าสุด 2026-05-07:
 - commit พัง: `83a3d80 feat(deal): support multi-product per deal (products array) + migration`
 - อาการ: `GET /deals` 500 เพราะ `DealOut.products` ต้องเป็น list แต่ row เก่าเป็น `NULL`
 - recovery: downgrade `20260507_01 -> 20260505_01`, reset VPS ไป `origin/main` commit `20a2863`, rebuild backend, run `alembic upgrade heads`
+- follow-up ที่ถูก deploy แล้ว: ใช้ `deal_product_entries` แทน `deals.products`
+- ห้าม resurrect migration `20260507_01_add_products_array_to_deals.py` หรือเพิ่ม `products` JSON column ใน `deals` อีกโดยไม่ออกแบบ rollback/backfill ใหม่
 
 ## 5) คำสั่งมาตรฐานที่ใช้บ่อย
 
@@ -145,19 +182,29 @@ curl -i http://localhost:8000/deals
 
 ## 6) สคริปต์ backup/restore ที่ตั้งไว้บน VPS แล้ว
 
-อยู่ที่:
-- /srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh
-- /srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh
+สถานะจริงบน VPS ณ 2026-05-07:
+- active backup script: `/root/backup-scripts/ces-prod-backup.sh`
+- active notify env: `/root/backup-scripts/backup-notify.env`
+- active backup root: `/root/ces_sale_operation_backups/production`
+- active cron log: `/var/log/ces-prod-backup.log`
+
+repository also has backup scripts under:
+- `scripts/backup/ces-prod-backup.sh`
+- `scripts/backup/ces-prod-restore.sh`
+
+อย่าสรุปว่า `/srv/ces_sale_operation_backups/scripts` มีอยู่จริงบน VPS จนกว่าจะ SSH ไปเช็ก
 
 cron:
 - รัน backup ทุกวันเวลา 01:00
-- log: /srv/ces_sale_operation_backups/ces-prod-backup.log
+- cron จริงที่พบ:
+  `0 1 * * * /root/backup-scripts/ces-prod-backup.sh >> /var/log/ces-prod-backup.log 2>&1`
 
 backup root:
-- /srv/ces_sale_operation_backups/production
+- `/root/ces_sale_operation_backups/production`
 - เก็บล่าสุด 3 backups
 - มี Telegram notification แจ้ง backup success/failure ไปหา owner
-- ข้อความ Telegram ล่าสุดยังแสดง backup dir ใต้ `/root/ces_sale_operation_backups/production/...`
+- verified manual pre-deploy backup 2026-05-07:
+  `/root/ces_sale_operation_backups/production/20260507_135711`
 - ก่อน restore หรือเปลี่ยน path backup ให้เช็ก cron จริงบน VPS ก่อน:
   `crontab -l | grep ces-prod-backup.sh`
 - ดูรายละเอียดเต็มใน docs/PROD_BACKUP_RUNBOOK.md
@@ -172,6 +219,7 @@ backup root:
 4. ถ้าทำงานกับ Production ให้เช็ก SSH, service health, current git commit, และ Alembic current ก่อน deploy
 5. หลังแก้โค้ด local แล้ว deploy ไป environment เป้าหมายและ verify ทุกครั้ง
 6. ถ้างานแตะ DB migration ให้เช็ก schema จริงและ endpoint ที่เกี่ยวข้องก่อนบอกว่างานจบ
+7. ถ้างานแตะ Deal modal multi-product ห้ามให้เลือก product/system type ซ้ำใน deal เดียวกัน ต้องกันทั้ง frontend และ backend
 
 ## 8) Troubleshooting เร็ว
 
@@ -193,11 +241,11 @@ COMPOSE_BAKE=false docker compose -f docker-compose.v2.yml --env-file .env.home 
 ## 9) ไฟล์โค้ดสำคัญที่แก้ล่าสุด
 
 - frontend/src/pages/DealsPage.tsx
-- frontend/src/pages/DealsDashboardPage.tsx
-- frontend/src/pages/UsersPage.tsx
-- frontend/src/api/index.ts
 - backend/app/api/deals.py
-- backend/app/api/users.py
+- backend/app/models/deal.py
+- backend/app/models/__init__.py
+- backend/app/schemas/deal.py
+- backend/alembic/versions/20260507_02_deal_product_entries.py
 
 ## 10) Access URLs (Home instance)
 
@@ -206,5 +254,5 @@ COMPOSE_BAKE=false docker compose -f docker-compose.v2.yml --env-file .env.home 
 
 ---
 
-Last updated: 2026-04-10
+Last updated: 2026-05-07
 Owner/context: Nattawee

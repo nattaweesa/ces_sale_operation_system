@@ -27,13 +27,12 @@ CES Backup FAILED on <hostname> at <YYYY-MM-DD HH:MM:SS> code=<exit-code>
 
 ## Script Paths on VPS
 - App dir: `/srv/ces_sale_operation_system`
-- Observed active daily backup root from Telegram: `/root/ces_sale_operation_backups/production`
+- Observed active backup script on 2026-05-07: `/root/backup-scripts/ces-prod-backup.sh`
+- Observed active notification env on 2026-05-07: `/root/backup-scripts/backup-notify.env`
+- Observed active daily backup root from Telegram and manual deploy backup: `/root/ces_sale_operation_backups/production`
+- Observed active cron log: `/var/log/ces-prod-backup.log`
 - Repository default backup root: `/srv/ces_sale_operation_backups/production`
-- Repository backup scripts: `/srv/ces_sale_operation_backups/scripts`
-- Repository backup script: `/srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh`
-- Repository restore script: `/srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh`
-- Repository notification env: `/srv/ces_sale_operation_backups/scripts/backup-notify.env`
-- Repository cron log: `/srv/ces_sale_operation_backups/ces-prod-backup.log`
+- Repository backup scripts are under `scripts/backup/` in git. They may not be installed at `/srv/ces_sale_operation_backups/scripts` on the VPS.
 
 Verify active cron:
 
@@ -43,6 +42,18 @@ crontab -l | grep ces-prod-backup.sh
 ```
 
 If cron points to `/root/backup-scripts`, use the `/root/...` restore paths for those backup sets. If cron points to `/srv/ces_sale_operation_backups/scripts`, use the `/srv/...` restore paths below.
+
+Observed active cron on 2026-05-07:
+
+```bash
+0 1 * * * /root/backup-scripts/ces-prod-backup.sh >> /var/log/ces-prod-backup.log 2>&1
+```
+
+Manual pre-deploy backup created on 2026-05-07:
+
+```text
+/root/ces_sale_operation_backups/production/20260507_135711
+```
 
 ## One-Time Install/Sync from Mac
 Run from repository root on Mac:
@@ -54,7 +65,7 @@ chmod +x scripts/backup/install-vps-backup-cron.sh
 
 ## Telegram Setup
 1. Message bot `@ces_sale_operation_bot` once (`/start`).
-2. Put values in `/srv/ces_sale_operation_backups/scripts/backup-notify.env`:
+2. Put values in the active notification env. On the current VPS this is `/root/backup-scripts/backup-notify.env`:
 
 ```bash
 TELEGRAM_BOT_TOKEN=<your_token>
@@ -65,19 +76,19 @@ TELEGRAM_CHAT_ID=<your_chat_id>
 
 ```bash
 APP_DIR=/srv/ces_sale_operation_system \
-BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
-NOTIFY_ENV=/srv/ces_sale_operation_backups/scripts/backup-notify.env \
-/srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh
+BACKUP_ROOT=/root/ces_sale_operation_backups/production \
+NOTIFY_ENV=/root/backup-scripts/backup-notify.env \
+bash /root/backup-scripts/ces-prod-backup.sh
 ```
 
 ## Verify Cron
 ```bash
 crontab -l | grep ces-prod-backup.sh
 ```
-Expected:
+Expected for the currently observed VPS setup:
 
 ```bash
-0 1 * * * APP_DIR=/srv/ces_sale_operation_system BACKUP_ROOT=/srv/ces_sale_operation_backups/production NOTIFY_ENV=/srv/ces_sale_operation_backups/scripts/backup-notify.env /srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh >> /srv/ces_sale_operation_backups/ces-prod-backup.log 2>&1
+0 1 * * * /root/backup-scripts/ces-prod-backup.sh >> /var/log/ces-prod-backup.log 2>&1
 ```
 
 ## Verify Backup Count (Should be 3)
@@ -113,16 +124,16 @@ Latest backup:
 
 ```bash
 APP_DIR=/srv/ces_sale_operation_system \
-BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
-/srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh latest
+BACKUP_ROOT=/root/ces_sale_operation_backups/production \
+bash /root/backup-scripts/ces-prod-restore.sh latest
 ```
 
 Specific timestamp:
 
 ```bash
 APP_DIR=/srv/ces_sale_operation_system \
-BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
-/srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh 20260409_010000
+BACKUP_ROOT=/root/ces_sale_operation_backups/production \
+bash /root/backup-scripts/ces-prod-restore.sh 20260507_135711
 ```
 
 ## Backup Contents

@@ -124,9 +124,11 @@ If deploy fails after backup, restore latest backup on VPS:
 ```bash
 ssh root@187.77.156.215
 APP_DIR=/srv/ces_sale_operation_system \
-BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
-/srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh latest
+BACKUP_ROOT=/root/ces_sale_operation_backups/production \
+bash /root/backup-scripts/ces-prod-restore.sh latest
 ```
+
+Current VPS backup scripts observed on 2026-05-07 live under `/root/backup-scripts`, not `/srv/ces_sale_operation_backups/scripts`. Always verify with `crontab -l | grep ces-prod-backup.sh` before restore.
 
 Manual workflow (fallback):
 
@@ -222,8 +224,10 @@ cd /Users/Nattawee.S/ces_sale_operation
 Backups are stored on the VPS under:
 
 ```bash
-/srv/ces_sale_operation_backups/production/<timestamp>/
+/root/ces_sale_operation_backups/production/<timestamp>/
 ```
+
+The repository backup scripts default to `/srv/ces_sale_operation_backups/production`, but the active production cron observed on 2026-05-07 uses `/root/ces_sale_operation_backups/production`.
 
 Each backup directory contains:
 - `db.dump`
@@ -243,6 +247,13 @@ Repository scripts are available in `scripts/backup/`:
 
 These scripts are intended to run on the VPS and keep only the latest 3 backups.
 
+Observed active production setup on 2026-05-07:
+- Backup script: `/root/backup-scripts/ces-prod-backup.sh`
+- Notification env: `/root/backup-scripts/backup-notify.env`
+- Backup root: `/root/ces_sale_operation_backups/production`
+- Cron log: `/var/log/ces-prod-backup.log`
+- Cron: `0 1 * * * /root/backup-scripts/ces-prod-backup.sh >> /var/log/ces-prod-backup.log 2>&1`
+
 Deploy scripts to VPS:
 
 ```bash
@@ -253,25 +264,25 @@ chmod +x scripts/backup/install-vps-backup-cron.sh
 Configure daily schedule at 01:00:
 
 ```bash
-( crontab -l 2>/dev/null | grep -v 'ces-prod-backup.sh' ; echo "0 1 * * * APP_DIR=/srv/ces_sale_operation_system BACKUP_ROOT=/srv/ces_sale_operation_backups/production NOTIFY_ENV=/srv/ces_sale_operation_backups/scripts/backup-notify.env /srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh >> /srv/ces_sale_operation_backups/ces-prod-backup.log 2>&1" ) | crontab -
+( crontab -l 2>/dev/null | grep -v 'ces-prod-backup.sh' ; echo "0 1 * * * /root/backup-scripts/ces-prod-backup.sh >> /var/log/ces-prod-backup.log 2>&1" ) | crontab -
 ```
 
 Optional Telegram notifications:
 
 ```bash
-scp scripts/backup/backup-notify.env.example root@187.77.156.215:/srv/ces_sale_operation_backups/scripts/backup-notify.env.example
-cp /srv/ces_sale_operation_backups/scripts/backup-notify.env.example /srv/ces_sale_operation_backups/scripts/backup-notify.env
+scp scripts/backup/backup-notify.env.example root@187.77.156.215:/root/backup-scripts/backup-notify.env.example
+cp /root/backup-scripts/backup-notify.env.example /root/backup-scripts/backup-notify.env
 # edit TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
-chmod 600 /srv/ces_sale_operation_backups/scripts/backup-notify.env
+chmod 600 /root/backup-scripts/backup-notify.env
 ```
 
 Run one manual test:
 
 ```bash
 APP_DIR=/srv/ces_sale_operation_system \
-BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
-NOTIFY_ENV=/srv/ces_sale_operation_backups/scripts/backup-notify.env \
-/srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh
+BACKUP_ROOT=/root/ces_sale_operation_backups/production \
+NOTIFY_ENV=/root/backup-scripts/backup-notify.env \
+bash /root/backup-scripts/ces-prod-backup.sh
 ```
 
 ### Production Rollback Strategy
@@ -343,6 +354,29 @@ Recovery performed:
 - Rebuilt and recreated the backend container.
 - Ran `alembic upgrade heads`.
 - Verified backend health, Alembic current, and that `deals.products` no longer exists.
+
+### Production Deploy - Deals Multi-Product (2026-05-07)
+
+Good commits deployed after the incident:
+- `0f69d6b feat(deals): add product entry rows`
+- `9cde255 fix(deals): prevent duplicate product rows`
+
+Design:
+- Do not use `deals.products` JSON/JSONB.
+- Use normalized table `deal_product_entries`.
+- Migration: `backend/alembic/versions/20260507_02_deal_product_entries.py`.
+- Backend aggregates product rows back into `deals.expected_value`, `deals.probability_pct`, and `deals.expected_close_date` so existing dashboard/kanban behavior keeps working.
+- Duplicate product/system types are rejected by backend and disabled/validated in frontend. Example: after selecting `C-bus` in one row, `C-bus` must not be selectable in another row for the same deal.
+
+Production verification after deploy:
+- VPS commit: `9cde255`.
+- Pre-deploy backup: `/root/ces_sale_operation_backups/production/20260507_135711`.
+- Backend and frontend containers healthy.
+- `curl http://localhost:8000/health` returned OK.
+- `GET /deals` without token returned `401 Unauthorized`, not 500.
+- `alembic current` showed:
+  - `20260507_02 (head)`
+  - `20260409_01 (head)`
 
 ## Local Mac → Staging → Production Flow
 

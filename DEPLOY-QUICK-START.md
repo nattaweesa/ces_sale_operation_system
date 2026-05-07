@@ -190,6 +190,13 @@ git push origin main
 
 During deploy, migrations run automatically inside the backend container.
 
+Latest production state after 2026-05-07 Deals multi-product deploy:
+- VPS commit: `9cde255 fix(deals): prevent duplicate product rows`
+- Alembic current includes `20260507_02 (head)` and `20260409_01 (head)`
+- Pre-deploy backup for the multi-product release: `/root/ces_sale_operation_backups/production/20260507_135711`
+- Deals multi-product uses `deal_product_entries`, not `deals.products`
+- Product/system type must not be duplicated in one deal. The frontend disables already selected options and backend rejects duplicates.
+
 ### 5️⃣ Roll Back If Production Fails
 ```bash
 # Restore latest backup and previous commit
