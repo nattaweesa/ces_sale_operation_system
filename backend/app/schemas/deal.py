@@ -70,6 +70,26 @@ class DealActivityOut(BaseModel):
     creator_name: Optional[str] = None
 
 
+class DealProductEntryIn(BaseModel):
+    product_system_type_id: int
+    probability_pct: int = Field(default=10, ge=0, le=100)
+    expected_value: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    expected_po_date: Optional[date] = None
+
+
+class DealProductEntryOut(BaseModel):
+    id: int
+    deal_id: int
+    product_system_type_id: int
+    product_system_type_name: Optional[str] = None
+    probability_pct: int
+    expected_value: Decimal
+    expected_po_date: Optional[date] = None
+    sort_order: int
+
+    model_config = {"from_attributes": True}
+
+
 class DealBase(BaseModel):
     title: str
     deal_customer_type_id: Optional[int] = None
@@ -92,6 +112,7 @@ class DealBase(BaseModel):
     competitor: Optional[str] = None
     description: Optional[str] = None
     product_system_type_ids: list[int] = []
+    product_entries: Optional[list[DealProductEntryIn]] = None
 
 
 class DealCreate(DealBase):
@@ -120,6 +141,7 @@ class DealUpdate(BaseModel):
     competitor: Optional[str] = None
     description: Optional[str] = None
     product_system_type_ids: Optional[list[int]] = None
+    product_entries: Optional[list[DealProductEntryIn]] = None
 
 
 class DealOut(BaseModel):
@@ -156,6 +178,7 @@ class DealOut(BaseModel):
     owner_name: Optional[str] = None
     product_system_type_ids: list[int] = []
     product_system_types: list[DealProductSystemTypeSelectionOut] = []
+    product_entries: list[DealProductEntryOut] = []
 
     tasks: list[DealTaskOut] = []
     activities: list[DealActivityOut] = []

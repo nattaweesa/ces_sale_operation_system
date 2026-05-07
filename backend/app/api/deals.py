@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.deal import Deal, DealTask, DealActivity
+from app.models.deal import Deal, DealTask, DealActivity, DealProductEntry
 from app.models.deal_master import DealCompany, DealCustomerType, DealProductSystemType, DealProjectStatusOption
 from app.models.deal_forecast import DealForecastMonthly
 from app.models.project import Project
@@ -59,6 +59,7 @@ async def _load_deal(deal_id: int, db: AsyncSession) -> Optional[Deal]:
             selectinload(Deal.project),
             selectinload(Deal.owner),
             selectinload(Deal.product_system_types),
+            selectinload(Deal.product_entries).selectinload(DealProductEntry.product_system_type),
             selectinload(Deal.tasks),
             selectinload(Deal.activities).selectinload(DealActivity.creator),
         )
@@ -91,6 +92,19 @@ def _to_deal_out(deal: Deal) -> DealOut:
         {"id": row.id, "name": row.name}
         for row in sorted(deal.product_system_types, key=lambda item: (item.sort_order, item.name.lower()))
     ]
+    product_entries = []
+    for entry in sorted(deal.product_entries, key=lambda item: (item.sort_order, item.id or 0)):
+        product_entries.append({
+            "id": entry.id,
+            "deal_id": entry.deal_id,
+            "product_system_type_id": entry.product_system_type_id,
+            "product_system_type_name": entry.product_system_type.name if entry.product_system_type else None,
+            "probability_pct": entry.probability_pct,
+            "expected_value": entry.expected_value,
+            "expected_po_date": entry.expected_po_date,
+            "sort_order": entry.sort_order,
+        })
+    out.product_entries = product_entries
     out.tasks = [DealTaskOut.model_validate(t) for t in deal.tasks]
     acts = []
     for a in deal.activities:
@@ -158,6 +172,82 @@ async def _prepare_deal_master_data(
     return prepared, product_system_types
 
 
+def _weighted_probability(entries: list[dict]) -> int:
+    if not entries:
+        return 10
+    total_value = sum(Decimal(str(row.get("expected_value") or 0)) for row in entries)
+    if total_value > 0:
+        weighted = sum(
+            Decimal(str(row.get("expected_value") or 0)) * Decimal(str(row.get("probability_pct") or 0))
+            for row in entries
+        ) / total_value
+        return int(weighted.quantize(Decimal("1")))
+    avg = sum(int(row.get("probability_pct") or 0) for row in entries) / len(entries)
+    return int(round(avg))
+
+
+async def _apply_product_entries(
+    deal: Deal,
+    entries: list[dict],
+    db: AsyncSession,
+) -> None:
+    normalized: list[dict] = []
+    product_ids: list[int] = []
+    seen_product_ids: set[int] = set()
+    for index, raw in enumerate(entries):
+        product_system_type_id = int(raw.get("product_system_type_id") or 0)
+        if product_system_type_id <= 0:
+            raise HTTPException(status_code=400, detail="Product/System Type is required for each product row")
+        if product_system_type_id in seen_product_ids:
+            raise HTTPException(status_code=400, detail="Duplicate Product/System Type rows are not allowed")
+        seen_product_ids.add(product_system_type_id)
+        probability_pct = int(raw.get("probability_pct") or 0)
+        if probability_pct < 0 or probability_pct > 100:
+            raise HTTPException(status_code=400, detail="Probability must be between 0 and 100")
+        expected_value = Decimal(str(raw.get("expected_value") or 0))
+        if expected_value < 0:
+            raise HTTPException(status_code=400, detail="Expected value cannot be negative")
+        normalized.append({
+            "product_system_type_id": product_system_type_id,
+            "probability_pct": probability_pct,
+            "expected_value": expected_value,
+            "expected_po_date": raw.get("expected_po_date"),
+            "sort_order": index,
+        })
+        product_ids.append(product_system_type_id)
+
+    if product_ids:
+        unique_ids = sorted(set(product_ids))
+        result = await db.execute(select(DealProductSystemType).where(DealProductSystemType.id.in_(unique_ids)))
+        product_system_types = result.scalars().all()
+        if len(product_system_types) != len(unique_ids):
+            raise HTTPException(status_code=400, detail="One or more Product/System Types are invalid")
+    else:
+        product_system_types = []
+
+    deal.product_entries = [
+        DealProductEntry(
+            product_system_type_id=row["product_system_type_id"],
+            probability_pct=row["probability_pct"],
+            expected_value=row["expected_value"],
+            expected_po_date=row["expected_po_date"],
+            sort_order=row["sort_order"],
+        )
+        for row in normalized
+    ]
+    deal.product_system_types = product_system_types
+
+    if normalized:
+        deal.expected_value = sum((row["expected_value"] for row in normalized), Decimal("0"))
+        deal.probability_pct = _weighted_probability(normalized)
+        dates = [row["expected_po_date"] for row in normalized if row["expected_po_date"] is not None]
+        deal.expected_close_date = min(dates) if dates else None
+    else:
+        deal.expected_value = Decimal("0")
+        deal.probability_pct = 10
+        deal.expected_close_date = None
+
+
 @router.get("", response_model=list[DealOut])
 async def list_deals(
     owner_id: Optional[int] = Query(None),
@@ -176,6 +266,7 @@ async def list_deals(
             selectinload(Deal.project),
             selectinload(Deal.owner),
             selectinload(Deal.product_system_types),
+            selectinload(Deal.product_entries).selectinload(DealProductEntry.product_system_type),
             selectinload(Deal.tasks),
             selectinload(Deal.activities).selectinload(DealActivity.creator),
         )
@@ -206,7 +297,9 @@ async def create_deal(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    data, product_system_types = await _prepare_deal_master_data(payload.model_dump(), db)
+    data = payload.model_dump()
+    product_entries = data.pop("product_entries", None)
+    data, product_system_types = await _prepare_deal_master_data(data, db)
 
     if data.get("owner_id") is None:
         data["owner_id"] = current_user.id
@@ -227,7 +320,9 @@ async def create_deal(
         data["project_id"] = auto_project.id
 
     deal = Deal(**data)
-    if product_system_types is not None:
+    if product_entries is not None:
+        await _apply_product_entries(deal, product_entries, db)
+    elif product_system_types is not None:
         deal.product_system_types = product_system_types
     db.add(deal)
     await db.flush()
@@ -278,7 +373,9 @@ async def update_deal(
     if not await can_user(db, current_user, "deals.view_all"):
         _assert_access(current_user, deal)
 
-    updates, product_system_types = await _prepare_deal_master_data(payload.model_dump(exclude_none=True), db)
+    raw_updates = payload.model_dump(exclude_none=True)
+    product_entries = raw_updates.pop("product_entries", None)
+    updates, product_system_types = await _prepare_deal_master_data(raw_updates, db)
 
     if "owner_id" in updates and not _is_manager(current_user):
         raise HTTPException(status_code=403, detail="Only manager/admin can reassign owner")
@@ -289,7 +386,9 @@ async def update_deal(
     for field, value in updates.items():
         setattr(deal, field, value)
 
-    if product_system_types is not None:
+    if product_entries is not None:
+        await _apply_product_entries(deal, product_entries, db)
+    elif product_system_types is not None:
         deal.product_system_types = product_system_types
 
     deal.last_reviewed_at = datetime.now(timezone.utc)

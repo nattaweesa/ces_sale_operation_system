@@ -16,7 +16,7 @@ import {
   message,
 } from "antd";
 import dayjs from "dayjs";
-import { CheckOutlined, PlusOutlined } from "@ant-design/icons";
+import { CheckOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { boqsApi, dealMasterDataApi, dealsApi, departmentsApi, projectsApi, usersApi } from "../api";
 import { useAuthStore } from "../store/authStore";
 import { formatTHBCompact, numberInputFormatter, numberInputParser } from "../utils/currency";
@@ -97,6 +97,50 @@ function fmt(n: number) {
 
 const DEALS_SEARCH_STORAGE_KEY = "deals_funnel_search";
 
+function createDefaultProductEntry(productSystemTypeId?: number) {
+  return {
+    product_system_type_id: productSystemTypeId,
+    probability_pct: 10,
+    expected_value: 0,
+    expected_po_date: undefined,
+  };
+}
+
+function buildDealProductEntries(deal: any) {
+  const entries = deal.product_entries || [];
+  if (entries.length > 0) {
+    return entries.map((entry: any) => ({
+      product_system_type_id: entry.product_system_type_id ? Number(entry.product_system_type_id) : undefined,
+      probability_pct: Number(entry.probability_pct ?? deal.probability_pct ?? 10),
+      expected_value: Number(entry.expected_value || 0),
+      expected_po_date: entry.expected_po_date ? dayjs(entry.expected_po_date) : undefined,
+    }));
+  }
+
+  const productIds = (deal.product_system_type_ids || []).map((value: any) => Number(value)).filter(Boolean);
+  if (productIds.length > 0) {
+    return productIds.map((productId: number, index: number) => ({
+      product_system_type_id: productId,
+      probability_pct: Number(deal.probability_pct || 10),
+      expected_value: index === 0 ? Number(deal.expected_value || 0) : 0,
+      expected_po_date: deal.expected_close_date ? dayjs(deal.expected_close_date) : undefined,
+    }));
+  }
+
+  return [createDefaultProductEntry()];
+}
+
+function serializeDealProductEntries(entries: any[] | undefined) {
+  return (entries || [])
+    .filter((entry) => entry?.product_system_type_id)
+    .map((entry) => ({
+      product_system_type_id: Number(entry.product_system_type_id),
+      probability_pct: Number(entry.probability_pct || 0),
+      expected_value: Number(entry.expected_value || 0),
+      expected_po_date: entry.expected_po_date ? entry.expected_po_date.format("YYYY-MM-DD") : null,
+    }));
+}
+
 export default function DealsPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -117,7 +161,6 @@ export default function DealsPage() {
   const [editingDeal, setEditingDeal] = useState<any>(null);
   const [dealForm] = Form.useForm();
   const selectedCustomerTypeId = Form.useWatch("deal_customer_type_id", dealForm);
-  const selectedProductSystemTypeIds = Form.useWatch("product_system_type_ids", dealForm) || [];
   const [quickCompanyOpen, setQuickCompanyOpen] = useState(false);
   const [quickCompanySaving, setQuickCompanySaving] = useState(false);
   const [quickCompanyForm] = Form.useForm();
@@ -204,7 +247,8 @@ export default function DealsPage() {
       status: projectStatusOptions[0]?.value || DEFAULT_PROJECT_STATUS_OPTIONS[0].value,
       probability_pct: 10,
       expected_value: 0,
-      product_system_type_ids: [],
+      expected_close_date: undefined,
+      product_entries: [createDefaultProductEntry()],
       owner_id: user?.user_id,
     });
     setOpenDeal(true);
@@ -214,18 +258,29 @@ export default function DealsPage() {
     setEditingDeal(deal);
     dealForm.setFieldsValue({
       ...deal,
-      product_system_type_ids: (deal.product_system_type_ids || []).map((value: any) => Number(value)),
       expected_close_date: deal.expected_close_date ? dayjs(deal.expected_close_date) : undefined,
+      product_entries: buildDealProductEntries(deal),
     });
     setOpenDeal(true);
   };
 
   const saveDeal = async () => {
     const v = await dealForm.validateFields();
+    const productEntries = serializeDealProductEntries(v.product_entries);
+    if (productEntries.length === 0) {
+      message.error("Please add at least one Product / System row.");
+      return;
+    }
+    const uniqueProductIds = new Set(productEntries.map((entry) => entry.product_system_type_id));
+    if (uniqueProductIds.size !== productEntries.length) {
+      message.error("Duplicate Product / System rows are not allowed.");
+      return;
+    }
     const payload = {
       ...v,
       expected_close_date: v.expected_close_date ? v.expected_close_date.format("YYYY-MM-DD") : null,
-      product_system_type_ids: v.product_system_type_ids || [],
+      product_entries: productEntries,
+      product_system_type_ids: productEntries.map((entry) => entry.product_system_type_id),
     };
     if (editingDeal) {
       await dealsApi.update(editingDeal.id, payload);
@@ -277,10 +332,8 @@ export default function DealsPage() {
     try {
       const res = await dealMasterDataApi.quickAddProductSystemType({ name: values.name });
       await loadMasterData();
-      dealForm.setFieldValue(
-        "product_system_type_ids",
-        Array.from(new Set([...(selectedProductSystemTypeIds || []), res.data.id]))
-      );
+      const rows = dealForm.getFieldValue("product_entries") || [];
+      dealForm.setFieldValue("product_entries", [...rows, createDefaultProductEntry(res.data.id)]);
       setQuickProductSystemOpen(false);
       quickProductSystemForm.resetFields();
       message.success("Product/System Type added");
@@ -796,7 +849,7 @@ export default function DealsPage() {
         title={editingDeal ? "Update Deal" : "New Deal"}
         onCancel={() => setOpenDeal(false)}
         onOk={saveDeal}
-        width={760}
+        width={1080}
         okText="Save"
       >
         <Form form={dealForm} layout="vertical" style={{ marginTop: 12 }}>
@@ -854,23 +907,11 @@ export default function DealsPage() {
             </Form.Item>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isManager ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 12 }}>
-            <Form.Item name="product_system_type_ids" label="Product / System Type">
-              <Select
-                mode="multiple"
-                allowClear
-                options={productSystemTypeOptions}
-                placeholder="Select one or more types"
-                dropdownRender={(menu) => (
-                  <>
-                    {menu}
-                    <div style={{ padding: 8, borderTop: "1px solid #f0f0f0" }}>
-                      <Button type="text" icon={<PlusOutlined />} onClick={() => setQuickProductSystemOpen(true)}>
-                        Quick add product/system type
-                      </Button>
-                    </div>
-                  </>
-                )}
-              />
+            <Form.Item name="deal_cycle_stage" label="CES Stage" rules={[{ required: true }]}>
+              <Select options={stageOptions} />
+            </Form.Item>
+            <Form.Item name="status" label="Project Status" rules={[{ required: true }]}>
+              <Select options={statusOptions} />
             </Form.Item>
             {isManager && (
               <Form.Item name="owner_id" label="Owner" rules={[{ required: true }]}>
@@ -878,30 +919,101 @@ export default function DealsPage() {
               </Form.Item>
             )}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
-            <Form.Item name="deal_cycle_stage" label="CES Stage" rules={[{ required: true }]}>
-              <Select options={stageOptions} />
-            </Form.Item>
-            <Form.Item name="status" label="Project Status" rules={[{ required: true }]}>
-              <Select options={statusOptions} />
-            </Form.Item>
-            <Form.Item name="probability_pct" label="Probability %">
-              <InputNumber min={0} max={100} style={{ width: "100%" }} />
-            </Form.Item>
-            <Form.Item name="expected_value" label="Expected Value (THB)">
-              <InputNumber
-                min={0}
-                style={{ width: "100%" }}
-                formatter={numberInputFormatter}
-                parser={(v) => numberInputParser(v as string)}
-              />
-            </Form.Item>
+
+          <div style={{ marginTop: 10, marginBottom: 14 }}>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-sm font-bold mb-0">Product / Value / Probability</p>
+                <p className="text-xs text-slate-500 mb-0">
+                  Add one row per product or subsystem. Deal value and probability are summarized from these rows.
+                </p>
+              </div>
+              <Button type="dashed" icon={<PlusOutlined />} onClick={() => setQuickProductSystemOpen(true)}>
+                Quick add product/system type
+              </Button>
+            </div>
+
+            <Form.List name="product_entries">
+              {(fields, { add, remove }) => (
+                <Space direction="vertical" style={{ width: "100%" }} size={10}>
+                  {fields.map((field) => (
+                    <div
+                      key={field.key}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(260px, 1.4fr) 130px 180px 170px 40px",
+                        gap: 12,
+                        alignItems: "start",
+                      }}
+                    >
+                      <Form.Item
+                        {...field}
+                        name={[field.name, "product_system_type_id"]}
+                        label="Product / System Type"
+                        rules={[{ required: true, message: "Select product/system" }]}
+                      >
+                        <Select
+                          allowClear
+                          options={productSystemTypeOptions}
+                          placeholder="Select product or subsystem"
+                          dropdownRender={(menu) => (
+                            <>
+                              {menu}
+                              <div style={{ padding: 8, borderTop: "1px solid #f0f0f0" }}>
+                                <Button type="text" icon={<PlusOutlined />} onClick={() => setQuickProductSystemOpen(true)}>
+                                  Quick add product/system type
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        {...field}
+                        name={[field.name, "probability_pct"]}
+                        label="Probability %"
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber min={0} max={100} style={{ width: "100%" }} />
+                      </Form.Item>
+                      <Form.Item
+                        {...field}
+                        name={[field.name, "expected_value"]}
+                        label="Expected Value (THB)"
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          style={{ width: "100%" }}
+                          formatter={numberInputFormatter}
+                          parser={(v) => numberInputParser(v as string)}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        {...field}
+                        name={[field.name, "expected_po_date"]}
+                        label="Expected PO Date"
+                      >
+                        <DatePicker style={{ width: "100%" }} />
+                      </Form.Item>
+                      <Button
+                        aria-label="Remove product row"
+                        icon={<DeleteOutlined />}
+                        danger
+                        disabled={fields.length <= 1}
+                        onClick={() => remove(field.name)}
+                        style={{ marginTop: 30 }}
+                      />
+                    </div>
+                  ))}
+                  <Button type="dashed" icon={<PlusOutlined />} onClick={() => add(createDefaultProductEntry())} block>
+                    Add Product
+                  </Button>
+                </Space>
+              )}
+            </Form.List>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Form.Item name="expected_close_date" label="Expected PO Date">
-              <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
-          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Form.Item name="source" label="Lead Source"><Input /></Form.Item>
             <Form.Item name="competitor" label="Competitor"><Input /></Form.Item>

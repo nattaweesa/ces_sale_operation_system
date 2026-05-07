@@ -63,6 +63,13 @@ class Deal(Base):
         back_populates="deals",
         lazy="select",
     )
+    product_entries: Mapped[list["DealProductEntry"]] = relationship(
+        "DealProductEntry",
+        back_populates="deal",
+        cascade="all, delete-orphan",
+        order_by="DealProductEntry.sort_order",
+        lazy="select",
+    )
     boqs: Mapped[list["BOQ"]] = relationship("BOQ", lazy="select")
     tasks: Mapped[list["DealTask"]] = relationship(
         "DealTask", back_populates="deal", cascade="all, delete-orphan", order_by="DealTask.created_at.desc()"
@@ -91,6 +98,31 @@ class DealTask(Base):
 
     deal: Mapped["Deal"] = relationship("Deal", back_populates="tasks")
     creator: Mapped["Optional[User]"] = relationship("User", lazy="select")
+
+
+class DealProductEntry(Base):
+    __tablename__ = "deal_product_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    deal_id: Mapped[int] = mapped_column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
+    product_system_type_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("deal_product_system_types.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    probability_pct: Mapped[int] = mapped_column(Integer, default=10)
+    expected_value: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
+    expected_po_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    deal: Mapped["Deal"] = relationship("Deal", back_populates="product_entries")
+    product_system_type: Mapped["DealProductSystemType"] = relationship("DealProductSystemType", lazy="select")
 
 
 class DealActivity(Base):

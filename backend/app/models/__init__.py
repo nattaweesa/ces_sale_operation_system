@@ -22,7 +22,7 @@ from app.models.quotation_upload import QuotationUploadFile
 from app.models.material_approval import (
     MaterialApprovalPackage, MaterialApprovalItem
 )
-from app.models.deal import Deal, DealTask, DealActivity
+from app.models.deal import Deal, DealTask, DealActivity, DealProductEntry
 from app.models.deal_forecast import DealForecastMonthly
 from app.models.audit import AuditLog
 from app.models.sourcing import (
@@ -79,7 +79,7 @@ __all__ = [
     "MasterIngestionRawLine", "MasterIngestionNormalizedLine", "MasterProductCandidate", "MasterCandidateMatchSuggestion",
     "MasterPriceObservation", "MasterReviewActionLog",
     "MaterialApprovalPackage", "MaterialApprovalItem",
-    "Deal", "DealTask", "DealActivity",
+    "Deal", "DealTask", "DealActivity", "DealProductEntry",
     "DealForecastMonthly",
     "SourceDocument", "SourceLineItem", "ProductAlias", "ProductPriceHistory", "LineMatchReviewQueue",
     "AuditLog",
