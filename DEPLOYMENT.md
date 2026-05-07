@@ -39,10 +39,10 @@ ssh root@187.77.156.215
 cd /root/ces_sale_operation_system_staging
 
 # Copy production files as base
-cp -r /root/ces_sale_operation_system/{backend,frontend} .
+cp -r /srv/ces_sale_operation_system/{backend,frontend} .
 
 # Create env file
-cp /root/ces_sale_operation_system/.env.staging /root/ces_sale_operation_system_staging/
+cp /srv/ces_sale_operation_system/.env.staging /root/ces_sale_operation_system_staging/
 
 # Start staging
 docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d
@@ -63,7 +63,7 @@ docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d
 1. Push changes to `develop` branch on GitHub
 2. SSH into VPS and pull `develop` branch in staging folder
 3. Rebuild containers: `docker compose -f docker-compose.staging.yml --env-file .env.staging build`
-4. Run migrations automatically during deploy: `alembic upgrade head`
+4. Run migrations automatically during deploy: `alembic upgrade heads`
 5. Test features at staging URLs
 6. Once verified, merge `develop` → `main` and deploy to production
 
@@ -73,6 +73,7 @@ docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d
 ```bash
 # Already running at:
 ssh root@187.77.156.215
+cd /srv/ces_sale_operation_system
 docker compose -f docker-compose.prod.yml --env-file .env.prod ps
 ```
 
@@ -110,17 +111,21 @@ What the script does:
 2. Pushes latest `main` to origin
 3. Runs VPS pre-deploy backup script
 4. Pulls latest code on VPS and deploys with Docker Compose
-5. Runs `alembic upgrade head`
+5. Runs `alembic upgrade heads`
 6. Verifies domain health checks:
    - `https://ces.msoftthai.com/login`
    - `https://ces.msoftthai.com/api/health`
 7. Verifies frontend bundle does not leak direct `:8000` API URL
 
+Deploy scripts only move Alembic forward. They do not automatically downgrade the database if a bad migration was already applied and code is later reset to an older commit.
+
 If deploy fails after backup, restore latest backup on VPS:
 
 ```bash
 ssh root@187.77.156.215
-/root/backup-scripts/ces-prod-restore.sh latest
+APP_DIR=/srv/ces_sale_operation_system \
+BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
+/srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh latest
 ```
 
 Manual workflow (fallback):
@@ -134,7 +139,7 @@ cd /Users/Nattawee.S/ces_sale_operation
 ssh root@187.77.156.215
 
 # Navigate to production folder
-cd /root/ces_sale_operation_system
+cd /srv/ces_sale_operation_system
 
 # Pull latest main branch
 git fetch origin
@@ -150,12 +155,54 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 # Run migrations
 docker exec \
    $(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q backend) \
-   alembic upgrade head
+   alembic upgrade heads
 
 # Verify health
 docker compose -f docker-compose.prod.yml --env-file .env.prod ps
 curl http://localhost:8000/health
 ```
+
+### Production Safety Checks for Model or Migration Changes
+
+Run these checks before deploying any change that touches SQLAlchemy models, Pydantic schemas, Alembic migrations, or API response shapes:
+
+```bash
+cd /Users/Nattawee.S/ces_sale_operation
+git status --short --branch
+git log -1 --oneline
+```
+
+On the VPS:
+
+```bash
+ssh root@187.77.156.215
+cd /srv/ces_sale_operation_system
+git rev-parse --short HEAD
+git status --short
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+docker exec \
+  $(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q backend) \
+  alembic current
+docker exec \
+  $(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q backend) \
+  alembic heads
+```
+
+For changed tables, inspect the real production schema from Postgres:
+
+```bash
+COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod"
+DB_CONTAINER=$($COMPOSE ps -q db)
+docker exec "$DB_CONTAINER" psql -U ces -d ces_sale_operation -c "\d deals"
+docker exec "$DB_CONTAINER" psql -U ces -d ces_sale_operation -c "select count(*) from deals;"
+```
+
+Backward compatibility rules:
+- New API response fields must tolerate old production rows, including `NULL` values.
+- New columns should have a server default or an explicit backfill when old rows exist.
+- Pydantic output schemas must not require a non-null list/dict unless the database guarantees it for every row.
+- Frontend code should tolerate both old and new response shapes during the deploy window.
+- Verify the affected endpoint directly, not only `/health`.
 
 ### Production Backup Strategy
 
@@ -175,16 +222,17 @@ cd /Users/Nattawee.S/ces_sale_operation
 Backups are stored on the VPS under:
 
 ```bash
-/root/ces_sale_operation_backups/production/<timestamp>/
+/srv/ces_sale_operation_backups/production/<timestamp>/
 ```
 
 Each backup directory contains:
 - `db.dump`
 - `storage.tgz`
 - `config_snapshot.tgz`
+- `app_snapshot.tgz`
 - `metadata.env`
 - `compose_ps.txt`
-- `git_commit.txt`
+- `SHA256SUMS`
 
 ### Daily VPS Backup Automation (Keep 3)
 
@@ -198,30 +246,32 @@ These scripts are intended to run on the VPS and keep only the latest 3 backups.
 Deploy scripts to VPS:
 
 ```bash
-scp scripts/backup/ces-prod-backup.sh root@187.77.156.215:/root/backup-scripts/ces-prod-backup.sh
-scp scripts/backup/ces-prod-restore.sh root@187.77.156.215:/root/backup-scripts/ces-prod-restore.sh
-chmod +x /root/backup-scripts/ces-prod-backup.sh /root/backup-scripts/ces-prod-restore.sh
+chmod +x scripts/backup/install-vps-backup-cron.sh
+./scripts/backup/install-vps-backup-cron.sh
 ```
 
 Configure daily schedule at 01:00:
 
 ```bash
-( crontab -l 2>/dev/null | grep -v 'ces-prod-backup.sh' ; echo "0 1 * * * /root/backup-scripts/ces-prod-backup.sh >> /var/log/ces-prod-backup.log 2>&1" ) | crontab -
+( crontab -l 2>/dev/null | grep -v 'ces-prod-backup.sh' ; echo "0 1 * * * APP_DIR=/srv/ces_sale_operation_system BACKUP_ROOT=/srv/ces_sale_operation_backups/production NOTIFY_ENV=/srv/ces_sale_operation_backups/scripts/backup-notify.env /srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh >> /srv/ces_sale_operation_backups/ces-prod-backup.log 2>&1" ) | crontab -
 ```
 
 Optional Telegram notifications:
 
 ```bash
-scp scripts/backup/backup-notify.env.example root@187.77.156.215:/root/backup-scripts/backup-notify.env.example
-cp /root/backup-scripts/backup-notify.env.example /root/backup-scripts/backup-notify.env
+scp scripts/backup/backup-notify.env.example root@187.77.156.215:/srv/ces_sale_operation_backups/scripts/backup-notify.env.example
+cp /srv/ces_sale_operation_backups/scripts/backup-notify.env.example /srv/ces_sale_operation_backups/scripts/backup-notify.env
 # edit TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
-chmod 600 /root/backup-scripts/backup-notify.env
+chmod 600 /srv/ces_sale_operation_backups/scripts/backup-notify.env
 ```
 
 Run one manual test:
 
 ```bash
-/root/backup-scripts/ces-prod-backup.sh
+APP_DIR=/srv/ces_sale_operation_system \
+BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
+NOTIFY_ENV=/srv/ces_sale_operation_backups/scripts/backup-notify.env \
+/srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh
 ```
 
 ### Production Rollback Strategy
@@ -247,6 +297,52 @@ To restore a specific backup:
 ```bash
 ./rollback-production.sh 20260407_154500
 ```
+
+Do not use only `git reset --hard` or `git push --force` as a production rollback. Git rollback changes code, but it does not necessarily revert:
+- Alembic version rows
+- Added or removed database columns
+- Backfilled data
+- Uploaded/storage state
+- Running Docker images that were already built from a bad commit
+
+After any rollback, verify the VPS state, not just local git:
+
+```bash
+ssh root@187.77.156.215
+cd /srv/ces_sale_operation_system
+git rev-parse --short HEAD
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+docker exec \
+  $(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q backend) \
+  alembic current
+curl -fsS http://localhost:8000/health
+```
+
+For the Deals module specifically, `GET /deals` without a bearer token should return `401 Unauthorized`. A `500 Internal Server Error` means backend application logic or serialization is still broken.
+
+### Production Incident - 2026-05-07
+
+Bad commit:
+- `83a3d80 feat(deal): support multi-product per deal (products array) + migration`
+
+Files touched by the bad change:
+- `backend/app/models/deal.py`
+- `backend/app/schemas/deal.py`
+- `backend/app/api/deals.py`
+- `backend/alembic/versions/20260507_01_add_products_array_to_deals.py`
+
+Failure:
+- `GET /deals` returned 500.
+- Backend log showed Pydantic validation error for `DealOut.products`.
+- Old production rows had `products = NULL`, while the new schema required `products: list[dict]`.
+
+Recovery performed:
+- On VPS path `/srv/ces_sale_operation_system`.
+- Downgraded Alembic from `20260507_01` to `20260505_01`.
+- Reset VPS git state to `origin/main` at `20a2863`.
+- Rebuilt and recreated the backend container.
+- Ran `alembic upgrade heads`.
+- Verified backend health, Alembic current, and that `deals.products` no longer exists.
 
 ## Local Mac → Staging → Production Flow
 
@@ -283,7 +379,7 @@ docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
 # Run migrations
 docker exec \
    $(docker compose -f docker-compose.staging.yml --env-file .env.staging ps -q backend) \
-   alembic upgrade head
+   alembic upgrade heads
 
 # Test at http://187.77.156.215:5174
 ```
@@ -301,7 +397,7 @@ git push origin main
 # On VPS
 ssh root@187.77.156.215
 
-cd /root/ces_sale_operation_system
+cd /srv/ces_sale_operation_system
 
 # Pull latest main branch
 git fetch origin
@@ -315,7 +411,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 # Run migrations
 docker exec \
    \$(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q backend) \
-   alembic upgrade head
+   alembic upgrade heads
 
 # Verify
 curl http://localhost:8000/health
@@ -406,7 +502,7 @@ docker exec ces_sale_operation_system-db-1 psql -U ces -d ces_sale_operation -c 
 
 5. **Run migrations only through deploy flow:**
    - Local: run migrations manually while developing
-   - Staging/Production: let deploy scripts run `alembic upgrade head`
+   - Staging/Production: let deploy scripts run `alembic upgrade heads`
    - Avoid manual schema changes directly in PostgreSQL
 
 ## Git Workflow

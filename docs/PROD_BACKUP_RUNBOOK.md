@@ -6,10 +6,43 @@
 - Scope: PostgreSQL dump + `/app/storage` + compose/env snapshot + app snapshot
 - Notification: Telegram (success/failure)
 
+## Current Notification Behavior
+- Daily backup sends Telegram messages to the owner on success/failure.
+- Success message format is similar to:
+
+```text
+CES Backup OK on <hostname> at <YYYY-MM-DD HH:MM:SS> dir=<backup-dir>
+```
+
+- A failure message is similar to:
+
+```text
+CES Backup FAILED on <hostname> at <YYYY-MM-DD HH:MM:SS> code=<exit-code>
+```
+
+- Screenshot evidence from 2026-05-05 through 2026-05-07 shows daily OK messages at about 01:00 server time, delivered to Telegram around 08:00 Thailand time.
+- The observed Telegram messages currently show backup dirs under `/root/ces_sale_operation_backups/production/...`.
+- Newer repository scripts default to `/srv/ces_sale_operation_backups/production`.
+- Before changing backup paths or restore commands, always verify the actual VPS crontab and existing backup root. Do not delete or overwrite either backup root until the active cron path is confirmed.
+
 ## Script Paths on VPS
-- `/root/backup-scripts/ces-prod-backup.sh`
-- `/root/backup-scripts/ces-prod-restore.sh`
-- `/root/backup-scripts/backup-notify.env`
+- App dir: `/srv/ces_sale_operation_system`
+- Observed active daily backup root from Telegram: `/root/ces_sale_operation_backups/production`
+- Repository default backup root: `/srv/ces_sale_operation_backups/production`
+- Repository backup scripts: `/srv/ces_sale_operation_backups/scripts`
+- Repository backup script: `/srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh`
+- Repository restore script: `/srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh`
+- Repository notification env: `/srv/ces_sale_operation_backups/scripts/backup-notify.env`
+- Repository cron log: `/srv/ces_sale_operation_backups/ces-prod-backup.log`
+
+Verify active cron:
+
+```bash
+ssh root@187.77.156.215
+crontab -l | grep ces-prod-backup.sh
+```
+
+If cron points to `/root/backup-scripts`, use the `/root/...` restore paths for those backup sets. If cron points to `/srv/ces_sale_operation_backups/scripts`, use the `/srv/...` restore paths below.
 
 ## One-Time Install/Sync from Mac
 Run from repository root on Mac:
@@ -21,7 +54,7 @@ chmod +x scripts/backup/install-vps-backup-cron.sh
 
 ## Telegram Setup
 1. Message bot `@ces_sale_operation_bot` once (`/start`).
-2. Put values in `/root/backup-scripts/backup-notify.env`:
+2. Put values in `/srv/ces_sale_operation_backups/scripts/backup-notify.env`:
 
 ```bash
 TELEGRAM_BOT_TOKEN=<your_token>
@@ -31,7 +64,10 @@ TELEGRAM_CHAT_ID=<your_chat_id>
 3. Test manually:
 
 ```bash
-/root/backup-scripts/ces-prod-backup.sh
+APP_DIR=/srv/ces_sale_operation_system \
+BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
+NOTIFY_ENV=/srv/ces_sale_operation_backups/scripts/backup-notify.env \
+/srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh
 ```
 
 ## Verify Cron
@@ -41,25 +77,76 @@ crontab -l | grep ces-prod-backup.sh
 Expected:
 
 ```bash
-0 1 * * * /root/backup-scripts/ces-prod-backup.sh >> /var/log/ces-prod-backup.log 2>&1
+0 1 * * * APP_DIR=/srv/ces_sale_operation_system BACKUP_ROOT=/srv/ces_sale_operation_backups/production NOTIFY_ENV=/srv/ces_sale_operation_backups/scripts/backup-notify.env /srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh >> /srv/ces_sale_operation_backups/ces-prod-backup.log 2>&1
 ```
 
 ## Verify Backup Count (Should be 3)
 ```bash
+find /srv/ces_sale_operation_backups/production -mindepth 1 -maxdepth 1 -type d | wc -l
+```
+
+If the active Telegram path is still `/root`, verify that backup root instead:
+
+```bash
 find /root/ces_sale_operation_backups/production -mindepth 1 -maxdepth 1 -type d | wc -l
+```
+
+## Verify Latest Backup Contents
+```bash
+LATEST="$(find /srv/ces_sale_operation_backups/production -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -n | tail -n 1 | awk '{print $2}')"
+echo "$LATEST"
+ls -lh "$LATEST"
+cat "$LATEST/metadata.env"
+sha256sum -c "$LATEST/SHA256SUMS"
+```
+
+For the observed `/root` backup root:
+
+```bash
+LATEST="$(find /root/ces_sale_operation_backups/production -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -n | tail -n 1 | awk '{print $2}')"
+echo "$LATEST"
+ls -lh "$LATEST"
 ```
 
 ## Restore
 Latest backup:
 
 ```bash
-/root/backup-scripts/ces-prod-restore.sh latest
+APP_DIR=/srv/ces_sale_operation_system \
+BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
+/srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh latest
 ```
 
 Specific timestamp:
 
 ```bash
-/root/backup-scripts/ces-prod-restore.sh 20260409_010000
+APP_DIR=/srv/ces_sale_operation_system \
+BACKUP_ROOT=/srv/ces_sale_operation_backups/production \
+/srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh 20260409_010000
+```
+
+## Backup Contents
+Each backup directory should contain:
+- `db.dump` - PostgreSQL custom-format dump
+- `storage.tgz` - `/app/storage`
+- `config_snapshot.tgz` - compose/env files
+- `app_snapshot.tgz` - app source snapshot
+- `compose_ps.txt` - container status at backup time
+- `metadata.env` - timestamp, host, app dir, compose/env names
+- `SHA256SUMS` - checksums for backup archives
+
+## Restore Safety Notes
+- Prefer restore from a known-good backup over ad-hoc Alembic downgrades in production.
+- Restoring runs `pg_restore --clean --if-exists`, so it replaces current DB objects.
+- After restore, always verify:
+
+```bash
+cd /srv/ces_sale_operation_system
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+curl -fsS http://localhost:8000/health
+docker exec \
+  $(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q backend) \
+  alembic current
 ```
 
 ## Notes

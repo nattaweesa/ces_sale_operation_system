@@ -51,7 +51,7 @@ git push origin develop  # OR your feature branch
 
 These staging deploy commands also run database migrations automatically:
 ```bash
-alembic upgrade head
+alembic upgrade heads
 ```
 
 ---
@@ -78,8 +78,10 @@ git push origin main
 
 These production deploy commands also:
 - create a pre-deploy backup automatically
-- run `alembic upgrade head`
+- run `alembic upgrade heads`
 - fail the deploy if migrations or health checks fail
+
+Important: deploy scripts only run Alembic upgrades. They do not automatically downgrade or remove a migration if you reset git back to an older commit. If a bad migration reached production, verify and repair DB state explicitly or restore from a backup.
 
 ---
 
@@ -90,7 +92,7 @@ These production deploy commands also:
 ./deploy-production.sh quick
 # Takes ~30 seconds
 # Creates pre-deploy backup first
-# Runs alembic upgrade head
+# Runs alembic upgrade heads
 # No Dockerfile rebuild
 # Services restart and pull latest git code
 ```
@@ -100,7 +102,7 @@ These production deploy commands also:
 ./deploy-production.sh build
 # Takes 2-5 minutes
 # Creates pre-deploy backup first
-# Runs alembic upgrade head
+# Runs alembic upgrade heads
 # Rebuilds Docker images
 # Installs all dependencies fresh
 # Then restarts services
@@ -194,6 +196,27 @@ During deploy, migrations run automatically inside the backend container.
 ./rollback-production.sh latest
 ```
 
+If the failure involved an Alembic migration, do not assume git rollback is enough. Confirm all three match:
+
+```bash
+ssh root@187.77.156.215
+cd /srv/ces_sale_operation_system
+git rev-parse --short HEAD
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+docker exec \
+  $(docker compose -f docker-compose.prod.yml --env-file .env.prod ps -q backend) \
+  alembic current
+```
+
+Also verify the affected endpoint directly from the VPS, for example:
+
+```bash
+curl -fsS http://localhost:8000/health
+curl -i http://localhost:8000/deals
+```
+
+`/deals` without a token should return `401 Unauthorized`, not `500 Internal Server Error`.
+
 ---
 
 ## Common Issues
@@ -214,7 +237,7 @@ git pull origin main
 ```bash
 # Check logs
 ssh root@187.77.156.215
-cd /root/ces_sale_operation_system
+cd /srv/ces_sale_operation_system
 docker compose -f docker-compose.prod.yml --env-file .env.prod logs
 
 # Or rebuild from scratch
@@ -225,7 +248,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ### ❌ Need to pull staging/production files quickly
 ```bash
 # View production logs
-ssh root@187.77.156.215 'docker compose -f /root/ces_sale_operation_system/docker-compose.prod.yml --env-file /root/ces_sale_operation_system/.env.prod logs -f backend | tail -50'
+ssh root@187.77.156.215 'docker compose -f /srv/ces_sale_operation_system/docker-compose.prod.yml --env-file /srv/ces_sale_operation_system/.env.prod logs -f backend | tail -50'
 
 # View staging logs
 ssh root@187.77.156.215 'docker compose -f /root/ces_sale_operation_system_staging/docker-compose.staging.yml --env-file /root/ces_sale_operation_system_staging/.env.staging logs -f backend | tail -50'
@@ -243,6 +266,9 @@ ssh root@187.77.156.215 'docker compose -f /root/ces_sale_operation_system_stagi
 - Commit before deploying
 - Keep the latest successful production backup
 - Run rollback immediately if health checks fail after deploy
+- For model/schema changes, backfill old rows and make serializers tolerate legacy/null values during transition
+- Verify Alembic heads/current and the actual DB schema after deploy or rollback
+- Verify the exact API endpoint affected by the model change, not only `/health`
 
 ❌ **DON'T:**
 - Edit production files directly via SSH
@@ -250,6 +276,8 @@ ssh root@187.77.156.215 'docker compose -f /root/ces_sale_operation_system_stagi
 - Use production branch for experimental code
 - Skip staging validation
 - Forget to push before deploying
+- Force-push `main` as a rollback plan without checking the VPS commit and DB migration state
+- Remove or downgrade a deployed migration casually without checking production data and backups
 
 ---
 

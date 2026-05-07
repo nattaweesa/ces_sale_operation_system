@@ -13,9 +13,10 @@
 
 ## 2) โครงสร้าง environment ที่ใช้งานจริง
 
-### A) Production เดิม (VPS)
+### A) Production (VPS)
 - โฮสต์: 187.77.156.215
-- โฟลเดอร์โปรเจกต์: /root/ces_sale_operation_system
+- โฟลเดอร์โปรเจกต์ปัจจุบัน: /srv/ces_sale_operation_system
+- โฟลเดอร์ legacy/เอกสารเก่าบางจุดอาจยังพูดถึง: /root/ces_sale_operation_system
 - compose file: docker-compose.prod.yml
 - env file: .env.prod
 - พอร์ตหลัก:
@@ -25,6 +26,7 @@
 หมายเหตุ:
 - ช่วงท้ายมีปัญหาเชื่อม SSH ไป VPS ไม่เสถียร (หลายคำสั่ง exit 255)
 - แต่ก่อนหน้านี้ deploy งานสำคัญสำเร็จแล้ว
+- เวลาเช็ก production ให้ดู path `/srv/ces_sale_operation_system` ก่อนเสมอ
 
 ### B) Home instance ใหม่ (แยกจาก prod)
 - โฮสต์: 192.168.3.185 (modlab04)
@@ -74,6 +76,20 @@
 - สร้าง/รีเซ็ต admin ผ่านคำสั่งใน backend container
 - ตั้งให้ is_active=true
 
+### Production model/migration safety
+
+ถ้างานแตะ SQLAlchemy model, Pydantic schema, Alembic migration, หรือ API response shape:
+- ต้องทดสอบกับข้อมูลเก่าใน DB ที่มีอยู่แล้ว ไม่ใช่แค่ row ใหม่
+- field ใหม่ที่เป็น list/dict ต้องรองรับ `NULL` หรือ migration ต้อง backfill ให้ครบ
+- deploy script รัน `alembic upgrade heads` เท่านั้น ไม่ได้ downgrade ให้เอง
+- rollback ด้วย git อย่างเดียวไม่พอถ้า migration ถูก apply ไปแล้ว
+- หลัง deploy/rollback ต้องเช็กทั้ง git commit, Alembic current, schema จริง และ endpoint ที่เกี่ยวข้อง
+
+Incident ล่าสุด 2026-05-07:
+- commit พัง: `83a3d80 feat(deal): support multi-product per deal (products array) + migration`
+- อาการ: `GET /deals` 500 เพราะ `DealOut.products` ต้องเป็น list แต่ row เก่าเป็น `NULL`
+- recovery: downgrade `20260507_01 -> 20260505_01`, reset VPS ไป `origin/main` commit `20a2863`, rebuild backend, run `alembic upgrade heads`
+
 ## 5) คำสั่งมาตรฐานที่ใช้บ่อย
 
 ### Home instance (เครื่อง 192.168.3.185)
@@ -108,24 +124,43 @@ curl -I http://localhost:5185/
 ### Production (VPS)
 
 ```bash
-cd /root/ces_sale_operation_system
+cd /srv/ces_sale_operation_system
 docker compose -f docker-compose.prod.yml --env-file .env.prod ps
 docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
 
+เช็ก migration/schema ก่อนและหลังงาน database:
+```bash
+cd /srv/ces_sale_operation_system
+COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod"
+docker exec $($COMPOSE ps -q backend) alembic current
+docker exec $($COMPOSE ps -q backend) alembic heads
+docker exec $($COMPOSE ps -q db) psql -U ces -d ces_sale_operation -c "\d deals"
+curl -fsS http://localhost:8000/health
+curl -i http://localhost:8000/deals
+```
+
+หมายเหตุ: `curl -i http://localhost:8000/deals` โดยไม่มี token ควรได้ 401 ไม่ใช่ 500
+
 ## 6) สคริปต์ backup/restore ที่ตั้งไว้บน VPS แล้ว
 
 อยู่ที่:
-- /root/backup-scripts/ces-prod-backup.sh
-- /root/backup-scripts/ces-prod-restore.sh
+- /srv/ces_sale_operation_backups/scripts/ces-prod-backup.sh
+- /srv/ces_sale_operation_backups/scripts/ces-prod-restore.sh
 
 cron:
 - รัน backup ทุกวันเวลา 01:00
-- log: /var/log/ces-prod-backup.log
+- log: /srv/ces_sale_operation_backups/ces-prod-backup.log
 
 backup root:
-- /root/ces_sale_operation_backups/production
+- /srv/ces_sale_operation_backups/production
+- เก็บล่าสุด 3 backups
+- มี Telegram notification แจ้ง backup success/failure ไปหา owner
+- ข้อความ Telegram ล่าสุดยังแสดง backup dir ใต้ `/root/ces_sale_operation_backups/production/...`
+- ก่อน restore หรือเปลี่ยน path backup ให้เช็ก cron จริงบน VPS ก่อน:
+  `crontab -l | grep ces-prod-backup.sh`
+- ดูรายละเอียดเต็มใน docs/PROD_BACKUP_RUNBOOK.md
 
 ## 7) Checklist สำหรับเปิด session ใหม่ (copy ไปให้ agent ใหม่ได้เลย)
 
@@ -134,8 +169,9 @@ backup root:
    - Production VPS
    - Home instance
 3. ถ้าทำงานกับ Home instance ให้เช็กก่อนว่า login ได้
-4. ถ้าทำงานกับ Production ให้เช็ก SSH และ service health ก่อน deploy
+4. ถ้าทำงานกับ Production ให้เช็ก SSH, service health, current git commit, และ Alembic current ก่อน deploy
 5. หลังแก้โค้ด local แล้ว deploy ไป environment เป้าหมายและ verify ทุกครั้ง
+6. ถ้างานแตะ DB migration ให้เช็ก schema จริงและ endpoint ที่เกี่ยวข้องก่อนบอกว่างานจบ
 
 ## 8) Troubleshooting เร็ว
 
