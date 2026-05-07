@@ -161,6 +161,7 @@ export default function DealsPage() {
   const [editingDeal, setEditingDeal] = useState<any>(null);
   const [dealForm] = Form.useForm();
   const selectedCustomerTypeId = Form.useWatch("deal_customer_type_id", dealForm);
+  const selectedProductEntries = Form.useWatch("product_entries", dealForm) || [];
   const [quickCompanyOpen, setQuickCompanyOpen] = useState(false);
   const [quickCompanySaving, setQuickCompanySaving] = useState(false);
   const [quickCompanyForm] = Form.useForm();
@@ -593,6 +594,30 @@ export default function DealsPage() {
     return result;
   }, [productSystemTypes]);
 
+  const selectedProductSystemTypeIds = useMemo(
+    () =>
+      (selectedProductEntries || [])
+        .map((entry: any) => Number(entry?.product_system_type_id))
+        .filter(Boolean),
+    [selectedProductEntries]
+  );
+
+  const productSystemTypeOptionsForRow = (currentValue?: number) => {
+    const selectedInOtherRows = new Set(
+      selectedProductSystemTypeIds.filter((id: number) => id !== Number(currentValue))
+    );
+    const markDisabled = (option: any): any => {
+      if (option.options) {
+        return { ...option, options: option.options.map(markDisabled) };
+      }
+      return {
+        ...option,
+        disabled: option.disabled || selectedInOtherRows.has(Number(option.value)),
+      };
+    };
+    return productSystemTypeOptions.map(markDisabled);
+  };
+
   const statusOptions = useMemo(() => {
     if (projectStatusOptions.length > 0) return projectStatusOptions;
     return DEFAULT_PROJECT_STATUS_OPTIONS;
@@ -950,12 +975,32 @@ export default function DealsPage() {
                         {...field}
                         name={[field.name, "product_system_type_id"]}
                         label="Product / System Type"
-                        rules={[{ required: true, message: "Select product/system" }]}
+                        rules={[
+                          { required: true, message: "Select product/system" },
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              if (!value) return Promise.resolve();
+                              const rows = getFieldValue("product_entries") || [];
+                              const duplicateCount = rows.filter(
+                                (row: any) => Number(row?.product_system_type_id) === Number(value)
+                              ).length;
+                              if (duplicateCount > 1) {
+                                return Promise.reject(new Error("This product/system is already selected."));
+                              }
+                              return Promise.resolve();
+                            },
+                          }),
+                        ]}
                       >
                         <Select
                           allowClear
-                          options={productSystemTypeOptions}
+                          options={productSystemTypeOptionsForRow(
+                            selectedProductEntries?.[field.name]?.product_system_type_id
+                          )}
                           placeholder="Select product or subsystem"
+                          onChange={() => {
+                            dealForm.validateFields([["product_entries"]]).catch(() => undefined);
+                          }}
                           dropdownRender={(menu) => (
                             <>
                               {menu}
